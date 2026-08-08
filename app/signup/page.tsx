@@ -30,7 +30,20 @@ function SignupForm() {
     setError(null);
     setLoading(true);
 
-    const result = await createClinicAction({ clinicName, name, email, password });
+    let result: { error?: string };
+    try {
+      result = await createClinicAction({ clinicName, name, email, password });
+    } catch (err) {
+      // A server action can reject outright (network failure, function
+      // timeout, cold-start taking longer than the platform allows) rather
+      // than resolving with {error}. Without this catch, that left the
+      // button stuck on "Setting up your clinic…" forever with no feedback.
+      console.error(err);
+      setError("The request timed out. Your clinic may or may not have been created — try signing in first before creating it again.");
+      setLoading(false);
+      return;
+    }
+
     if (result.error) {
       setError(result.error);
       setLoading(false);
