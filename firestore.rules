@@ -1,0 +1,111 @@
+rules_version = '2';
+
+// Multi-tenant isolation model:
+// - Every user's Firebase Auth token carries custom claims: clinicId + role
+//   (role is 'reception' | 'doctor'), set server-side only (never trust
+//   claims a client could set itself) — see scripts/seedClinic.mjs and
+//   app/dashboard/settings staff actions.
+// - Every data document (appointments, patients, attendance) stores a
+//   clinicId field matching the clinic it belongs to.
+// - Every rule below checks that the requester's token clinicId matches the
+//   document's clinicId, so one clinic's staff can never read or write
+//   another clinic's data, even if they guessed a document ID.
+//
+// Role enforcement (mirrors the UI locking in the appointments dashboard,
+// but this file is the actual security boundary, not the UI):
+// - Only 'doctor' can delete an appointment.
+// - Once an appointment's status is 'Visited', 'reception' can no longer
+//   change the locked clinical/billing fields (payment, payment_type,
+//   reference, diagnosis, follow_up, call_back) — 'doctor' still can.
+//
+// Deploy with: firebase deploy --only firestore:rules
+
+function isSignedIn() {
+  return request.auth != null;
+}
+
+function clinicId() {
+  return request.auth.token.clinicId;
+}
+
+function role() {
+  return request.auth.token.role;
+}
+
+function isDoctor() {
+  return isSignedIn() && role() == 'doctor';
+}
+
+function belongsToClinic(data) {
+  return isSignedIn() && data.clinicId == clinicId();
+}
+
+function unchangedOrDoctor(field) {
+  return isDoctor()
+    || !(field in request.resource.data) && !(field in resource.data)
+    || (field in request.resource.data) == (field in resource.data)
+       && request.resource.data[field] == resource.data[field];
+}
+
+// Fields that lock for 'reception' once an appointment is marked Visited.
+function appointmentLockedFieldsUnchanged() {
+  return unchangedOrDoctor('payment')
+    && unchangedOrDoctor('payment_type')
+    && unchangedOrDoctor('reference')
+    && unchangedOrDoctor('diagnosis')
+    && unchangedOrDoctor('follow_up')
+    && unchangedOrDoctor('call_back');
+}
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // The clinic's own profile doc — readable by its own staff, not
+    // writable by clients at all (only the Admin SDK / server should
+    // update it, e.g. via scripts/seedClinic.mjs or a future settings action).
+    match /clinics/{clinicId} {
+      allow read: if isSignedIn() && request.auth.token.clinicId == clinicId;
+      allow write: if false;
+    }
+
+    // Firestore mirror of Firebase Auth users. Deliberately read-only for
+    // clients — staff are added/edited/removed only through server code
+    // using the Admin SDK, which bypasses these rules entirely. A client
+    // should never be able to grant itself a role by writing directly here.
+    match /staff/{staffId} {
+      allow read: if belongsToClinic(resource.data);
+      allow write: if false;
+    }
+
+    match /patients/{patientId} {
+      allow read: if belongsToClinic(resource.data);
+      allow create: if belongsToClinic(request.resource.data);
+      allow update: if belongsToClinic(resource.data)
+        && belongsToClinic(request.resource.data);
+      allow delete: if belongsToClinic(resource.data) && isDoctor();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if belongsToClinic(resource.data);
+      allow create: if belongsToClinic(request.resource.data);
+      allow update: if belongsToClinic(resource.data)
+        && belongsToClinic(request.resource.data) // can't change clinicId on update
+        && (resource.data.status != 'Visited' || appointmentLockedFieldsUnchanged());
+      allow delete: if belongsToClinic(resource.data) && isDoctor();
+    }
+
+    // Clock-in only (no clock-out) — a reception (front-desk) action, not
+    // something the doctor does. One immutable entry per staff per day; the
+    // doctor's visibility into it is read-only, over everyone's entries,
+    // while reception can only see/create their own.
+    match /attendance/{attendanceId} {
+      allow read: if belongsToClinic(resource.data)
+        && (isDoctor() || resource.data.staffUid == request.auth.uid);
+      allow create: if belongsToClinic(request.resource.data)
+        && role() == 'reception'
+        && request.resource.data.staffUid == request.auth.uid;
+      allow update: if false;
+      allow delete: if belongsToClinic(resource.data) && isDoctor();
+    }
+  }
+}
