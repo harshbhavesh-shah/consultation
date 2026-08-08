@@ -17,6 +17,9 @@
     "react-dom": "^18",
     "server-only": "^0.0.1"
   },
+  "overrides": {
+    "jose": "^4.15.9"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
