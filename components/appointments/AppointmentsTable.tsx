@@ -160,7 +160,7 @@ function ShiftSection({
         </div>
       ) : (
         <div className={`overflow-x-auto rounded-xl bg-surface shadow-soft ring-1 ring-beige-300 ${reordering ? "opacity-60" : ""}`}>
-          <table className="w-full min-w-[1180px] text-left text-sm">
+          <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-beige-300 text-xs uppercase tracking-wide text-brown-400">
                 <Th nowrap></Th>
@@ -204,7 +204,7 @@ function ShiftSection({
 
 function Th({ children, nowrap }: { children?: React.ReactNode; nowrap?: boolean }) {
   return (
-    <th className={`px-3 py-2.5 font-medium ${nowrap ? "whitespace-nowrap" : ""}`}>{children}</th>
+    <th className={`px-2 py-2.5 font-medium ${nowrap ? "whitespace-nowrap" : ""}`}>{children}</th>
   );
 }
 
@@ -283,7 +283,7 @@ function Row({
           <GripVertical size={16} />
         </span>
       </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle">
+      <td className="whitespace-nowrap px-2 py-2 align-middle">
         <input
           type="checkbox"
           checked={appointment.status === "Visited"}
@@ -292,10 +292,10 @@ function Row({
           className="h-4 w-4 accent-gold-600"
         />
       </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle text-brown-700">
+      <td className="whitespace-nowrap px-2 py-2 align-middle text-brown-700">
         {formatTo12Hour(appointment.appointment_time)}
       </td>
-      <td className="px-3 py-2 align-middle">
+      <td className="px-2 py-2 align-middle">
         <div className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="flex-shrink-0 rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-medium text-gold-600">
             #{appointment.token_number}
@@ -306,25 +306,26 @@ function Row({
           <div className="whitespace-nowrap text-xs text-brown-400">{appointment.gender}</div>
         )}
       </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle text-brown-700">{appointment.patient_phone}</td>
-      <td className="px-3 py-2 align-middle">
+      <td className="whitespace-nowrap px-2 py-2 align-middle text-brown-700">{appointment.patient_phone}</td>
+      <td className="px-2 py-2 align-middle">
         <EditableNumber
           value={appointment.payment}
           disabled={locked || busy}
           onSave={(v) => saveField({ payment: v })}
         />
       </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle text-brown-700">
+      <td className="whitespace-nowrap px-2 py-2 align-middle text-brown-700">
         {appointment.age !== "" ? `${appointment.age} ${appointment.age_unit === "years" ? "yrs" : "mo"}` : "—"}
       </td>
-      <td className="px-3 py-2 align-middle">
+      <td className="px-2 py-2 align-middle">
         <EditableText
           value={appointment.patient_address}
           disabled={locked || busy}
+          widthClass="w-20"
           onSave={(v) => saveField({ patient_address: v })}
         />
       </td>
-      <td className="px-3 py-2 align-middle">
+      <td className="px-2 py-2 align-middle">
         <select
           defaultValue={appointment.payment_type}
           disabled={locked || busy}
@@ -336,21 +337,23 @@ function Row({
           <option value="Online">Online</option>
         </select>
       </td>
-      <td className="px-3 py-2 align-middle">
+      <td className="px-2 py-2 align-middle">
         <EditableText
           value={appointment.reference}
           disabled={locked || busy}
+          widthClass="w-16"
           onSave={(v) => saveField({ reference: v })}
         />
       </td>
-      <td className="px-3 py-2 align-middle">
+      <td className="px-2 py-2 align-middle">
         <EditableText
           value={appointment.diagnosis}
           disabled={locked || busy}
+          widthClass="w-20"
           onSave={(v) => saveField({ diagnosis: v })}
         />
       </td>
-      <td className="px-3 py-2 align-middle">
+      <td className="px-2 py-2 align-middle">
         <EditableNumber
           value={appointment.follow_up}
           disabled={locked || busy}
@@ -358,7 +361,7 @@ function Row({
           onSave={(v) => saveField({ follow_up: v })}
         />
       </td>
-      <td className="px-3 py-2 align-middle">
+      <td className="px-2 py-2 align-middle">
         <EditableNumber
           value={appointment.call_back}
           disabled={locked || busy}
@@ -369,7 +372,7 @@ function Row({
           <div className="whitespace-nowrap text-[10px] text-brown-400">due {appointment.call_back_due_date}</div>
         )}
       </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle">
+      <td className="whitespace-nowrap px-2 py-2 align-middle">
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${
             appointment.entry_source === "walkin" ? "bg-beige-200 text-brown-700" : "bg-gold-100 text-gold-600"
@@ -378,7 +381,7 @@ function Row({
           {appointment.entry_source === "walkin" ? "Walk-in" : "Online"}
         </span>
       </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle">
+      <td className="whitespace-nowrap px-2 py-2 align-middle">
         <div className="flex items-center gap-2">
           <Link
             href={`/dashboard/appointments/new?editId=${appointment.id}`}
@@ -401,10 +404,12 @@ function Row({
 function EditableText({
   value,
   disabled,
+  widthClass = "w-28",
   onSave,
 }: {
   value: string;
   disabled?: boolean;
+  widthClass?: string;
   onSave: (v: string) => void;
 }) {
   const [local, setLocal] = useState(value);
@@ -414,7 +419,8 @@ function EditableText({
       disabled={disabled}
       onChange={(e) => setLocal(e.target.value)}
       onBlur={() => local !== value && onSave(local)}
-      className="w-28 rounded border border-transparent bg-transparent px-1.5 py-1 text-xs outline-none hover:border-beige-300 focus:border-gold-500 disabled:opacity-50"
+      title={local}
+      className={`${widthClass} rounded border border-transparent bg-transparent px-1.5 py-1 text-xs outline-none hover:border-beige-300 focus:border-gold-500 disabled:opacity-50`}
     />
   );
 }
