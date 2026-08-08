@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtectedRoute = pathname.startsWith("/dashboard");
-  const isLoginRoute = pathname === "/login";
+  const isLoginRoute = pathname === "/login" || pathname === "/signup";
 
   if (isProtectedRoute && !hasSessionCookie) {
     const loginUrl = new URL("/login", request.url);
@@ -32,5 +32,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/login", "/signup"],
 };

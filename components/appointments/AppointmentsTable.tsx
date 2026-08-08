@@ -160,22 +160,23 @@ function ShiftSection({
         </div>
       ) : (
         <div className={`overflow-x-auto rounded-xl bg-surface shadow-soft ring-1 ring-beige-300 ${reordering ? "opacity-60" : ""}`}>
-          <table className="w-full min-w-[940px] text-left text-sm">
+          <table className="w-full min-w-[1180px] text-left text-sm">
             <thead>
               <tr className="border-b border-beige-300 text-xs uppercase tracking-wide text-brown-400">
                 <Th nowrap></Th>
-                <Th nowrap>Token</Th>
+                <Th nowrap>Done</Th>
                 <Th nowrap>Time</Th>
-                <Th>Patient</Th>
-                <Th nowrap>Phone</Th>
+                <Th>Name</Th>
+                <Th nowrap>Contact Number</Th>
                 <Th nowrap>Payment</Th>
+                <Th nowrap>Age</Th>
+                <Th>Address</Th>
                 <Th nowrap>Type</Th>
                 <Th>Reference</Th>
                 <Th>Diagnosis</Th>
                 <Th nowrap>Follow-up</Th>
                 <Th nowrap>Call-back</Th>
                 <Th nowrap>Source</Th>
-                <Th nowrap>Done</Th>
                 <Th></Th>
               </tr>
             </thead>
@@ -263,7 +264,13 @@ function Row({
         onDrop();
       }}
       className={`border-b border-beige-300 last:border-0 hover:bg-canvas ${
-        isDragOver ? "bg-gold-100" : ""
+        isDragOver
+          ? "bg-gold-100"
+          : appointment.status === "Visited"
+            ? "bg-green-50/70"
+            : appointment.entry_source === "online"
+              ? "bg-blue-50/50"
+              : ""
       }`}
     >
       <td className="whitespace-nowrap px-2 py-2 align-middle">
@@ -276,18 +283,27 @@ function Row({
           <GripVertical size={16} />
         </span>
       </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle font-medium text-brown-900">
-        #{appointment.token_number}
+      <td className="whitespace-nowrap px-3 py-2 align-middle">
+        <input
+          type="checkbox"
+          checked={appointment.status === "Visited"}
+          disabled={busy || (role === "reception" && appointment.status === "Visited")}
+          onChange={(e) => handleToggleVisited(e.target.checked)}
+          className="h-4 w-4 accent-gold-600"
+        />
       </td>
       <td className="whitespace-nowrap px-3 py-2 align-middle text-brown-700">
         {formatTo12Hour(appointment.appointment_time)}
       </td>
       <td className="px-3 py-2 align-middle">
-        <div className="font-medium text-brown-900">{appointment.patient_name}</div>
-        {appointment.age !== "" && (
-          <div className="whitespace-nowrap text-xs text-brown-400">
-            {appointment.age} {appointment.age_unit} · {appointment.gender || "—"}
-          </div>
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <span className="flex-shrink-0 rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-medium text-gold-600">
+            #{appointment.token_number}
+          </span>
+          <span className="font-medium text-brown-900">{appointment.patient_name}</span>
+        </div>
+        {appointment.gender && (
+          <div className="whitespace-nowrap text-xs text-brown-400">{appointment.gender}</div>
         )}
       </td>
       <td className="whitespace-nowrap px-3 py-2 align-middle text-brown-700">{appointment.patient_phone}</td>
@@ -296,6 +312,16 @@ function Row({
           value={appointment.payment}
           disabled={locked || busy}
           onSave={(v) => saveField({ payment: v })}
+        />
+      </td>
+      <td className="whitespace-nowrap px-3 py-2 align-middle text-brown-700">
+        {appointment.age !== "" ? `${appointment.age} ${appointment.age_unit === "years" ? "yrs" : "mo"}` : "—"}
+      </td>
+      <td className="px-3 py-2 align-middle">
+        <EditableText
+          value={appointment.patient_address}
+          disabled={locked || busy}
+          onSave={(v) => saveField({ patient_address: v })}
         />
       </td>
       <td className="px-3 py-2 align-middle">
@@ -351,15 +377,6 @@ function Row({
         >
           {appointment.entry_source === "walkin" ? "Walk-in" : "Online"}
         </span>
-      </td>
-      <td className="whitespace-nowrap px-3 py-2 align-middle">
-        <input
-          type="checkbox"
-          checked={appointment.status === "Visited"}
-          disabled={busy || (role === "reception" && appointment.status === "Visited")}
-          onChange={(e) => handleToggleVisited(e.target.checked)}
-          className="h-4 w-4 accent-gold-600"
-        />
       </td>
       <td className="whitespace-nowrap px-3 py-2 align-middle">
         <div className="flex items-center gap-2">
