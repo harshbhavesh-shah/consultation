@@ -107,5 +107,12 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if belongsToClinic(resource.data) && isDoctor();
     }
+
+    // Monthly bank-deposit reconciliation — doctor-only, same as the
+    // analytics page it's shown on.
+    match /cashDeposits/{depositId} {
+      allow read: if belongsToClinic(resource.data) && isDoctor();
+      allow write: if belongsToClinic(request.resource.data) && isDoctor();
+    }
   }
 }

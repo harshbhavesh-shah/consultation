@@ -86,3 +86,15 @@ export interface AttendanceEntry {
   date: string; // YYYY-MM-DD
   clockIn: number;
 }
+
+// One per clinic per month — how much of that month's cash revenue has
+// been deposited to the bank so far. "Cash on hand" is derived
+// (monthly cashRevenue - amount), not stored, so it always stays correct
+// if the month's revenue changes later.
+export interface CashDeposit {
+  clinicId: string;
+  period: string; // YYYY-MM
+  amount: number;
+  updatedAt: number;
+  updatedBy: string;
+}

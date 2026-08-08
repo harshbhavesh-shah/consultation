@@ -240,6 +240,40 @@ export async function lookupPatientsByPhoneAction(phone: string): Promise<Patien
   }));
 }
 
+/**
+ * Drag-to-reorder within a shift. The dragged row's new visual position
+ * expresses "this patient should be seen before/after that one" — rather
+ * than inventing new time values (which could collide with someone else's
+ * slot), this keeps the same set of time slots already held by this group
+ * of appointments and reassigns them across the new order, then lets
+ * reassignDailyTokens recompute token numbers from the result.
+ */
+export async function reorderAppointmentsAction(
+  date: string,
+  orderedIds: string[]
+): Promise<{ error?: string }> {
+  const session = await requireSession();
+  if (orderedIds.length < 2) return {};
+
+  const appointments = await Promise.all(orderedIds.map((id) => getAppointment(session.clinicId, id)));
+  if (appointments.some((a) => !a)) return { error: "One of these appointments no longer exists." };
+
+  const locked = appointments.find(
+    (a) => a!.status === "Visited" && session.role === "reception"
+  );
+  if (locked) return { error: "A completed visit can't be reordered by reception." };
+
+  const sortedTimes = appointments.map((a) => a!.appointment_time).sort();
+
+  await Promise.all(
+    orderedIds.map((id, i) => updateAppointment(session.clinicId, id, { appointment_time: sortedTimes[i] }))
+  );
+
+  await reassignDailyTokens(session.clinicId, date);
+  revalidatePath("/dashboard/appointments");
+  return {};
+}
+
 export async function getBookedTimesForDateAction(date: string, excludeId?: string): Promise<string[]> {
   const session = await requireSession();
   const appointments = await getAppointmentsForDate(session.clinicId, date);

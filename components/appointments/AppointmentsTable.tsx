@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { Trash2, Pencil } from "lucide-react";
+import { Trash2, Pencil, GripVertical } from "lucide-react";
 import { formatTo12Hour } from "@/lib/slots";
 import {
   updateAppointmentFieldAction,
   toggleVisitedAction,
   deleteAppointmentAction,
+  reorderAppointmentsAction,
 } from "@/app/dashboard/appointments/actions";
 import type { Appointment, UserRole } from "@/types";
 
@@ -101,17 +102,68 @@ function ShiftSection({
   role: UserRole;
   date: string;
 }) {
+  // Local order, separate from the server-sorted prop, so a drag can be
+  // reflected immediately without waiting on the round-trip — resynced
+  // whenever the underlying data actually changes (date/shift switch,
+  // revalidation after any edit).
+  const [order, setOrder] = useState(appointments);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
+
+  useEffect(() => {
+    setOrder(appointments);
+  }, [appointments]);
+
+  function handleDrop(targetId: string) {
+    setDragOverId(null);
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      return;
+    }
+    const fromIndex = order.findIndex((a) => a.id === draggedId);
+    const toIndex = order.findIndex((a) => a.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedId(null);
+      return;
+    }
+
+    const dragged = order[fromIndex];
+    if (role === "reception" && dragged.status === "Visited") {
+      alert("A completed visit can't be reordered by reception.");
+      setDraggedId(null);
+      return;
+    }
+
+    const next = [...order];
+    next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, dragged);
+    const previous = order;
+    setOrder(next);
+    setDraggedId(null);
+    setReordering(true);
+
+    reorderAppointmentsAction(date, next.map((a) => a.id)).then((result) => {
+      setReordering(false);
+      if (result.error) {
+        setOrder(previous);
+        alert(result.error);
+      }
+    });
+  }
+
   return (
     <div>
-      {appointments.length === 0 ? (
+      {order.length === 0 ? (
         <div className="rounded-xl bg-surface p-6 text-center text-sm text-brown-400 shadow-soft ring-1 ring-beige-300">
           No appointments in this shift.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl bg-surface shadow-soft ring-1 ring-beige-300">
-          <table className="w-full min-w-[900px] text-left text-sm">
+        <div className={`overflow-x-auto rounded-xl bg-surface shadow-soft ring-1 ring-beige-300 ${reordering ? "opacity-60" : ""}`}>
+          <table className="w-full min-w-[940px] text-left text-sm">
             <thead>
               <tr className="border-b border-beige-300 text-xs uppercase tracking-wide text-brown-400">
+                <Th nowrap></Th>
                 <Th nowrap>Token</Th>
                 <Th nowrap>Time</Th>
                 <Th>Patient</Th>
@@ -128,8 +180,18 @@ function ShiftSection({
               </tr>
             </thead>
             <tbody>
-              {appointments.map((a) => (
-                <Row key={a.id} appointment={a} role={role} date={date} />
+              {order.map((a) => (
+                <Row
+                  key={a.id}
+                  appointment={a}
+                  role={role}
+                  date={date}
+                  isDragOver={dragOverId === a.id}
+                  onDragStart={() => setDraggedId(a.id)}
+                  onDragOver={() => setDragOverId(a.id)}
+                  onDragLeave={() => setDragOverId((id) => (id === a.id ? null : id))}
+                  onDrop={() => handleDrop(a.id)}
+                />
               ))}
             </tbody>
           </table>
@@ -145,7 +207,25 @@ function Th({ children, nowrap }: { children?: React.ReactNode; nowrap?: boolean
   );
 }
 
-function Row({ appointment, role, date }: { appointment: Appointment; role: UserRole; date: string }) {
+function Row({
+  appointment,
+  role,
+  date,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: {
+  appointment: Appointment;
+  role: UserRole;
+  date: string;
+  isDragOver: boolean;
+  onDragStart: () => void;
+  onDragOver: () => void;
+  onDragLeave: () => void;
+  onDrop: () => void;
+}) {
   const [, startTransition] = useTransition();
   const locked = role === "reception" && appointment.status === "Visited";
   const [busy, setBusy] = useState(false);
@@ -172,7 +252,30 @@ function Row({ appointment, role, date }: { appointment: Appointment; role: User
   }
 
   return (
-    <tr className="border-b border-beige-300 last:border-0 hover:bg-canvas">
+    <tr
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver();
+      }}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop();
+      }}
+      className={`border-b border-beige-300 last:border-0 hover:bg-canvas ${
+        isDragOver ? "bg-gold-100" : ""
+      }`}
+    >
+      <td className="whitespace-nowrap px-2 py-2 align-middle">
+        <span
+          draggable={!locked}
+          onDragStart={onDragStart}
+          title={locked ? "Completed visits can't be reordered by reception" : "Drag to reorder"}
+          className={locked ? "cursor-not-allowed text-brown-400/40" : "cursor-grab text-brown-400 hover:text-gold-600 active:cursor-grabbing"}
+        >
+          <GripVertical size={16} />
+        </span>
+      </td>
       <td className="whitespace-nowrap px-3 py-2 align-middle font-medium text-brown-900">
         #{appointment.token_number}
       </td>

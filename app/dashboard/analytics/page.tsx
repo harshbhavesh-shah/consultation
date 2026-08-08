@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { getAppointmentsInRange } from "@/lib/firestore/appointments";
+import { getCashDeposit } from "@/lib/firestore/cashDeposits";
 import { computeAnalytics, computeDailyTrend } from "@/lib/analytics";
+import CashReconciliation from "@/components/analytics/CashReconciliation";
 
 type Range = "today" | "month" | "ytd";
 
@@ -39,10 +41,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: { 
   const range = searchParams.range ?? "month";
   const today = todayLocalStr();
   const start = rangeStart(range, today);
+  const monthPeriod = today.slice(0, 7); // YYYY-MM
 
-  const [rangeAppointments, trendAppointments] = await Promise.all([
+  const [rangeAppointments, trendAppointments, cashDeposit] = await Promise.all([
     getAppointmentsInRange(session.clinicId, start, today),
     getAppointmentsInRange(session.clinicId, daysAgo(30, today), today),
+    range === "month" ? getCashDeposit(session.clinicId, monthPeriod) : Promise.resolve(null),
   ]);
 
   const summary = computeAnalytics(rangeAppointments);
@@ -97,6 +101,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: { 
             </ul>
           )}
         </div>
+
+        {range === "month" && (
+          <CashReconciliation
+            period={monthPeriod}
+            cashRevenue={summary.cashRevenue}
+            initialDeposit={cashDeposit?.amount ?? 0}
+          />
+        )}
       </div>
 
       <div className="mt-6 rounded-xl bg-surface p-6 shadow-soft ring-1 ring-beige-300">
