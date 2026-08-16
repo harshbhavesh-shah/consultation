@@ -65,6 +65,13 @@ export default function Sidebar({ clinicName, session }: { clinicName: string; s
             <Link
               key={item.href}
               href={item.href}
+              // Every nav item is always on screen in the sidebar, so
+              // Next.js's default link prefetching would otherwise
+              // server-render (and re-run every data fetch for) every page
+              // in the app on every render of the sidebar itself — for
+              // Patients that meant reading the whole patients collection
+              // in the background just from sitting on any other page.
+              prefetch={false}
               title={showLabels ? undefined : item.label}
               className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
                 showLabels ? "" : "justify-center"

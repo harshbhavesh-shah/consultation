@@ -62,13 +62,20 @@ export async function createPatient(
 }
 
 export async function searchPatients(clinicId: string, term: string): Promise<Patient[]> {
-  // Firestore has no case-insensitive substring search — fetch this
-  // clinic's patients and filter client-side. Fine at clinic scale (a few
-  // thousand patients); revisit with a search index if that changes.
-  const snap = await adminDb().collection("patients").where("clinicId", "==", clinicId).get();
-  const all = snap.docs.map(toPatient);
   const needle = term.trim().toLowerCase();
-  if (!needle) return all.slice(0, 50);
+  if (!needle) return listAllPatients(clinicId, 50);
+  // Very short terms match almost everything and aren't useful yet — skip
+  // the read entirely rather than scanning on every first keystroke.
+  if (needle.length < 2) return [];
+
+  // Firestore has no case-insensitive substring index, so this still needs
+  // a broad scan — but capped, so a large clinic's history (thousands of
+  // patients, e.g. after a historical data import) can't blow through a
+  // daily read quota on a single search. Revisit with a real search index
+  // (e.g. an indexed lowercased-name prefix field) if this cap starts
+  // missing real matches.
+  const snap = await adminDb().collection("patients").where("clinicId", "==", clinicId).limit(1000).get();
+  const all = snap.docs.map(toPatient);
   return all
     .filter(
       (p) =>
@@ -79,11 +86,20 @@ export async function searchPatients(clinicId: string, term: string): Promise<Pa
     .slice(0, 50);
 }
 
-export async function listAllPatients(clinicId: string): Promise<Patient[]> {
+export async function listAllPatients(clinicId: string, max = 50): Promise<Patient[]> {
   const snap = await adminDb()
     .collection("patients")
     .where("clinicId", "==", clinicId)
     .orderBy("createdAt", "desc")
+    .limit(max)
     .get();
   return snap.docs.map(toPatient);
+}
+
+/** Single aggregate read regardless of collection size — used for the
+ * Patients page header count instead of reading every document just to
+ * count them. */
+export async function getPatientCount(clinicId: string): Promise<number> {
+  const snap = await adminDb().collection("patients").where("clinicId", "==", clinicId).count().get();
+  return snap.data().count;
 }

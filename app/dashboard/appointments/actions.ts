@@ -11,7 +11,12 @@ import {
 } from "@/lib/firestore/appointments";
 import { reassignDailyTokens, countStillWaitingAhead } from "@/lib/tokenQueue";
 import { findPatientsByPhone, createPatient } from "@/lib/firestore/patients";
-import { getAppointmentsForDate } from "@/lib/firestore/appointments";
+import {
+  getAppointmentsForDate,
+  getAppointmentsInRange,
+  getAppointmentsByPatientId,
+  findAppointmentsByPhone,
+} from "@/lib/firestore/appointments";
 import { computeCallBackDueDate } from "@/lib/followups";
 import type { Appointment } from "@/types";
 
@@ -280,4 +285,34 @@ export async function getBookedTimesForDateAction(date: string, excludeId?: stri
   return appointments
     .filter((a) => a.status !== "Cancelled" && a.id !== excludeId)
     .map((a) => a.appointment_time);
+}
+
+/** Backs the calendar view (day/week/month) — fetches whatever date range
+ * is currently visible, refetched client-side as the user navigates
+ * instead of loading the whole clinic's appointment history at once. */
+export async function getAppointmentsInRangeAction(fromDate: string, toDate: string): Promise<Appointment[]> {
+  const session = await requireSession();
+  return getAppointmentsInRange(session.clinicId, fromDate, toDate);
+}
+
+/** Backs the calendar mini panel's "Past Visits" section. Prefers
+ * patientId (linked record) when available since it's exact; falls back to
+ * phone-number matching for online/legacy-synced appointments that were
+ * never linked to a Patient record. Excludes the appointment being viewed
+ * and anything not yet in the past, newest first. */
+export async function getPatientHistoryAction(
+  patientId: string | null,
+  phone: string,
+  excludeAppointmentId: string,
+  beforeDate: string
+): Promise<Appointment[]> {
+  const session = await requireSession();
+  const all = patientId
+    ? await getAppointmentsByPatientId(session.clinicId, patientId)
+    : await findAppointmentsByPhone(session.clinicId, phone);
+
+  return all
+    .filter((a) => a.id !== excludeAppointmentId && a.appointment_date <= beforeDate)
+    .sort((a, b) => (a.appointment_date + a.appointment_time < b.appointment_date + b.appointment_time ? 1 : -1))
+    .slice(0, 5);
 }

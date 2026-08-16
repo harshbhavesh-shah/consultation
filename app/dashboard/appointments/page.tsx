@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getAppointmentsForDate } from "@/lib/firestore/appointments";
-import AppointmentsTable from "@/components/appointments/AppointmentsTable";
+import AppointmentsViewSwitcher from "@/components/appointments/AppointmentsViewSwitcher";
 import DatePickerForm from "@/components/appointments/DatePickerForm";
 
 function todayLocalStr(): string {
@@ -41,7 +41,7 @@ export default async function AppointmentsPage({
         </div>
       </div>
 
-      <AppointmentsTable appointments={appointments} role={session.role} date={date} />
+      <AppointmentsViewSwitcher appointments={appointments} role={session.role} date={date} />
     </div>
   );
 }
