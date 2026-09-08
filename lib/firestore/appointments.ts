@@ -1,6 +1,17 @@
 import "server-only";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import type { Appointment, AppointmentStatus } from "@/types";
+
+// Every read below that's cached is tagged `appointments-${clinicId}` and
+// every write below revalidates that same tag, so a change is visible to
+// the writer immediately and to everyone else within the revalidate
+// window. The time-based `revalidate` is just a safety net for writes that
+// bypass these functions entirely (reassignDailyTokens in lib/tokenQueue.ts
+// batch-updates token_number/shift directly and revalidates the same tag).
+function appointmentsTag(clinicId: string): string {
+  return `appointments-${clinicId}`;
+}
 
 function toAppointment(doc: FirebaseFirestore.QueryDocumentSnapshot): Appointment {
   const data = doc.data();
@@ -35,13 +46,25 @@ function toAppointment(doc: FirebaseFirestore.QueryDocumentSnapshot): Appointmen
   };
 }
 
+// This is the hottest read in the app — the dashboard, the appointments
+// page, and the public (unauthenticated, uncached-at-the-edge) booking
+// availability endpoint all call it on every page view. Caching it means
+// repeat navigations/refreshes and repeated public-booking slot checks for
+// the same clinic+date are served from memory instead of re-scanning
+// Firestore each time.
 export async function getAppointmentsForDate(clinicId: string, date: string): Promise<Appointment[]> {
-  const snap = await adminDb()
-    .collection("appointments")
-    .where("clinicId", "==", clinicId)
-    .where("appointment_date", "==", date)
-    .get();
-  return snap.docs.map(toAppointment).sort((a, b) => a.appointment_time.localeCompare(b.appointment_time));
+  return unstable_cache(
+    async () => {
+      const snap = await adminDb()
+        .collection("appointments")
+        .where("clinicId", "==", clinicId)
+        .where("appointment_date", "==", date)
+        .get();
+      return snap.docs.map(toAppointment).sort((a, b) => a.appointment_time.localeCompare(b.appointment_time));
+    },
+    ["appointments-for-date", clinicId, date],
+    { revalidate: 20, tags: [appointmentsTag(clinicId)] }
+  )();
 }
 
 export async function getAppointment(clinicId: string, id: string): Promise<Appointment | null> {
@@ -56,6 +79,7 @@ export async function createAppointment(
 ): Promise<string> {
   const ref = adminDb().collection("appointments").doc();
   await ref.set({ ...input, clinicId, createdAt: Date.now(), token_number: 0, shift: "morning" });
+  revalidateTag(appointmentsTag(clinicId));
   return ref.id;
 }
 
@@ -71,6 +95,7 @@ export async function updateAppointment(
   delete safePatch.id;
   delete safePatch.clinicId;
   await ref.update(safePatch);
+  revalidateTag(appointmentsTag(clinicId));
 }
 
 export async function deleteAppointment(clinicId: string, id: string): Promise<void> {
@@ -78,6 +103,7 @@ export async function deleteAppointment(clinicId: string, id: string): Promise<v
   const doc = await ref.get();
   if (!doc.exists || doc.data()?.clinicId !== clinicId) throw new Error("Appointment not found");
   await ref.delete();
+  revalidateTag(appointmentsTag(clinicId));
 }
 
 export async function findAppointmentsByPhone(
@@ -120,13 +146,19 @@ export async function getAppointmentsInRange(
   fromDate: string,
   toDate: string
 ): Promise<Appointment[]> {
-  const snap = await adminDb()
-    .collection("appointments")
-    .where("clinicId", "==", clinicId)
-    .where("appointment_date", ">=", fromDate)
-    .where("appointment_date", "<=", toDate)
-    .get();
-  return snap.docs.map(toAppointment);
+  return unstable_cache(
+    async () => {
+      const snap = await adminDb()
+        .collection("appointments")
+        .where("clinicId", "==", clinicId)
+        .where("appointment_date", ">=", fromDate)
+        .where("appointment_date", "<=", toDate)
+        .get();
+      return snap.docs.map(toAppointment);
+    },
+    ["appointments-in-range", clinicId, fromDate, toDate],
+    { revalidate: 60, tags: [appointmentsTag(clinicId)] }
+  )();
 }
 
 export function isLockedForReception(status: AppointmentStatus): boolean {

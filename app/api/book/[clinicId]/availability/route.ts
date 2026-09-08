@@ -27,5 +27,12 @@ export async function GET(request: Request, { params }: { params: { clinicId: st
 
   const appointments = await getAppointmentsForDate(params.clinicId, date);
   const bookedTimes = appointments.filter((a) => a.status !== "Cancelled").map((a) => a.appointment_time);
-  return NextResponse.json({ bookedTimes }, { headers: CORS_HEADERS });
+  // This is public and uncredentialed (see CORS note above), so it's the
+  // most exposed read in the app — a short browser/CDN cache means a burst
+  // of requests for the same clinic+date (repeated page loads, a bot) is
+  // absorbed before it even reaches getAppointmentsForDate's own cache.
+  return NextResponse.json(
+    { bookedTimes },
+    { headers: { ...CORS_HEADERS, "Cache-Control": "public, max-age=15, s-maxage=15" } }
+  );
 }

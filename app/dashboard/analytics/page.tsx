@@ -41,13 +41,19 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: { 
   const range = searchParams.range ?? "month";
   const today = todayLocalStr();
   const start = rangeStart(range, today);
+  const trendStart = daysAgo(30, today);
   const monthPeriod = today.slice(0, 7); // YYYY-MM
 
-  const [rangeAppointments, trendAppointments, cashDeposit] = await Promise.all([
-    getAppointmentsInRange(session.clinicId, start, today),
-    getAppointmentsInRange(session.clinicId, daysAgo(30, today), today),
+  // One query spanning whichever start is earlier, then filtered in memory
+  // for each need — instead of two separate (and, for "today"/"month",
+  // overlapping) range scans of the same clinic's appointments.
+  const fetchStart = start < trendStart ? start : trendStart;
+  const [allAppointments, cashDeposit] = await Promise.all([
+    getAppointmentsInRange(session.clinicId, fetchStart, today),
     range === "month" ? getCashDeposit(session.clinicId, monthPeriod) : Promise.resolve(null),
   ]);
+  const rangeAppointments = allAppointments.filter((a) => a.appointment_date >= start);
+  const trendAppointments = allAppointments.filter((a) => a.appointment_date >= trendStart);
 
   const summary = computeAnalytics(rangeAppointments);
   const trend = computeDailyTrend(trendAppointments);

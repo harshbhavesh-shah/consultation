@@ -57,9 +57,17 @@ export async function createPatient(
   const patient_id = generatePatientCode();
   const ref = adminDb().collection("patients").doc();
   const createdAt = Date.now();
-  await ref.set({ clinicId, patient_id, createdAt, ...input });
+  // name_lower is a denormalized, indexed prefix-search field — Firestore
+  // has no case-insensitive substring index, so searchPatients() below
+  // relies on this instead of scanning every patient doc per search.
+  await ref.set({ clinicId, patient_id, createdAt, name_lower: input.name.trim().toLowerCase(), ...input });
   return { id: ref.id, clinicId, patient_id, createdAt, ...input };
 }
+
+// U+F8FF is a high private-use codepoint Firestore's docs recommend for
+// "starts with" range queries: it sorts after any realistic prefix, so
+// `[prefix, prefix + PREFIX_END]` bounds every string starting with `prefix`.
+const PREFIX_END = "";
 
 export async function searchPatients(clinicId: string, term: string): Promise<Patient[]> {
   const needle = term.trim().toLowerCase();
@@ -68,22 +76,35 @@ export async function searchPatients(clinicId: string, term: string): Promise<Pa
   // the read entirely rather than scanning on every first keystroke.
   if (needle.length < 2) return [];
 
-  // Firestore has no case-insensitive substring index, so this still needs
-  // a broad scan — but capped, so a large clinic's history (thousands of
-  // patients, e.g. after a historical data import) can't blow through a
-  // daily read quota on a single search. Revisit with a real search index
-  // (e.g. an indexed lowercased-name prefix field) if this cap starts
-  // missing real matches.
-  const snap = await adminDb().collection("patients").where("clinicId", "==", clinicId).limit(1000).get();
-  const all = snap.docs.map(toPatient);
-  return all
-    .filter(
-      (p) =>
-        p.name.toLowerCase().includes(needle) ||
-        p.phone.includes(needle) ||
-        p.patient_id.toLowerCase().includes(needle)
-    )
-    .slice(0, 50);
+  const base = adminDb().collection("patients").where("clinicId", "==", clinicId);
+
+  // Three independent, indexed "starts with" queries (name, phone, patient
+  // code) each capped at 20 docs, instead of one unbounded scan of the
+  // whole clinic filtered in memory. Firestore bills per document read, so
+  // this turns an O(clinic size) read into a flat, small O(1) one.
+  const [byName, byPhone, byCode] = await Promise.all([
+    base
+      .where("name_lower", ">=", needle)
+      .where("name_lower", "<=", needle + PREFIX_END)
+      .limit(20)
+      .get(),
+    base
+      .where("phone", ">=", needle)
+      .where("phone", "<=", needle + PREFIX_END)
+      .limit(20)
+      .get(),
+    base
+      .where("patient_id", ">=", needle.toUpperCase())
+      .where("patient_id", "<=", needle.toUpperCase() + PREFIX_END)
+      .limit(20)
+      .get(),
+  ]);
+
+  const byId = new Map<string, Patient>();
+  for (const snap of [byName, byPhone, byCode]) {
+    for (const doc of snap.docs) byId.set(doc.id, toPatient(doc));
+  }
+  return Array.from(byId.values()).slice(0, 50);
 }
 
 export async function listAllPatients(clinicId: string, max = 50): Promise<Patient[]> {

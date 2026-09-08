@@ -1,4 +1,5 @@
 import "server-only";
+import { revalidateTag } from "next/cache";
 import { adminDb } from "@/lib/firebase/admin";
 import { shiftForTime } from "@/lib/slots";
 import type { Shift } from "@/types";
@@ -81,6 +82,10 @@ export async function reassignDailyTokens(clinicId: string, appointmentDate: str
 
   if (pendingWrites > 0) {
     await batch.commit();
+    // Bypasses lib/firestore/appointments.ts's create/update/delete
+    // wrappers (it's a direct batch write), so it has to invalidate the
+    // cached appointments-for-date/range reads itself.
+    revalidateTag(`appointments-${clinicId}`);
   }
 
   return entries;
