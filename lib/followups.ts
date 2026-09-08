@@ -10,3 +10,11 @@ export function computeCallBackDueDate(
   date.setDate(date.getDate() + Number(callBackDays));
   return date.toISOString().slice(0, 10);
 }
+
+/** Same derivation as computeCallBackDueDate, for the `follow_up` (days)
+ * field — used by the day-before/on-the-day WhatsApp reminder cron in
+ * app/api/cron/send-scheduled-messages instead of storing a
+ * separately-editable due date that could drift out of sync. */
+export function computeFollowUpDueDate(appointmentDate: string, followUpDays: number | ""): string | null {
+  return computeCallBackDueDate(appointmentDate, followUpDays);
+}

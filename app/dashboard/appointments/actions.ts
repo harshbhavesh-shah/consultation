@@ -18,6 +18,7 @@ import {
   findAppointmentsByPhone,
 } from "@/lib/firestore/appointments";
 import { computeCallBackDueDate } from "@/lib/followups";
+import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 import type { Appointment } from "@/types";
 
 // Fields reception can no longer touch once an appointment is marked
@@ -37,6 +38,29 @@ async function requireSession() {
   const session = await getSession();
   if (!session) throw new Error("Not signed in.");
   return session;
+}
+
+/** Fires the "receipt_sent" WhatsApp template the first time a visit ends
+ * up Visited with a positive payment recorded — whichever of
+ * toggleVisitedAction/updateAppointmentFieldAction happens to be the one
+ * that completes that combination. Best-effort: a WhatsApp failure never
+ * surfaces to the caller. */
+async function maybeSendReceipt(clinicId: string, id: string): Promise<void> {
+  const appointment = await getAppointment(clinicId, id);
+  if (!appointment || appointment.status !== "Visited" || appointment.receipt_sent) return;
+  if (typeof appointment.payment !== "number" || appointment.payment <= 0) return;
+
+  const result = await sendAutomatedTemplate({
+    clinicId,
+    category: "receipt_sent",
+    toPhone: appointment.patient_phone,
+    params: [appointment.patient_name, String(appointment.payment), appointment.reference || "-"],
+    patientId: appointment.patientId,
+    patientName: appointment.patient_name,
+  });
+  if (result.sent) {
+    await updateAppointment(clinicId, id, { receipt_sent: true });
+  }
 }
 
 export async function updateAppointmentFieldAction(
@@ -67,6 +91,9 @@ export async function updateAppointmentFieldAction(
   }
 
   await updateAppointment(session.clinicId, id, patch);
+  if ("payment" in patch || "status" in patch) {
+    await maybeSendReceipt(session.clinicId, id);
+  }
   revalidatePath("/dashboard/appointments");
   return {};
 }
@@ -84,6 +111,7 @@ export async function toggleVisitedAction(id: string, visited: boolean): Promise
   }
 
   await updateAppointment(session.clinicId, id, { status: visited ? "Visited" : "Booked" });
+  if (visited) await maybeSendReceipt(session.clinicId, id);
   revalidatePath("/dashboard/appointments");
   return {};
 }

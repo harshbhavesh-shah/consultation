@@ -41,6 +41,9 @@ function toAppointment(doc: FirebaseFirestore.QueryDocumentSnapshot): Appointmen
     call_back: data.call_back ?? "",
     call_back_due_date: data.call_back_due_date ?? null,
     call_back_completed_at: data.call_back_completed_at ?? null,
+    receipt_sent: data.receipt_sent ?? false,
+    no_show_sent: data.no_show_sent ?? false,
+    feedback_sent: data.feedback_sent ?? false,
     createdAt: data.createdAt,
     createdBy: data.createdBy ?? "",
   };
@@ -75,10 +78,22 @@ export async function getAppointment(clinicId: string, id: string): Promise<Appo
 
 export async function createAppointment(
   clinicId: string,
-  input: Omit<Appointment, "id" | "clinicId" | "createdAt" | "token_number" | "shift">
+  input: Omit<
+    Appointment,
+    "id" | "clinicId" | "createdAt" | "token_number" | "shift" | "receipt_sent" | "no_show_sent" | "feedback_sent"
+  >
 ): Promise<string> {
   const ref = adminDb().collection("appointments").doc();
-  await ref.set({ ...input, clinicId, createdAt: Date.now(), token_number: 0, shift: "morning" });
+  await ref.set({
+    ...input,
+    clinicId,
+    createdAt: Date.now(),
+    token_number: 0,
+    shift: "morning",
+    receipt_sent: false,
+    no_show_sent: false,
+    feedback_sent: false,
+  });
   revalidateTag(appointmentsTag(clinicId));
   return ref.id;
 }

@@ -3,7 +3,8 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { getAppointmentsForDate, createAppointment } from "@/lib/firestore/appointments";
 import { reassignDailyTokens, countStillWaitingAhead } from "@/lib/tokenQueue";
-import { isBookableDate } from "@/lib/slots";
+import { isBookableDate, formatTo12Hour } from "@/lib/slots";
+import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 
 export interface BookingResult {
   error?: string;
@@ -66,6 +67,21 @@ export async function createPublicBookingAction(
   const entries = await reassignDailyTokens(clinicId, input.date);
   const ahead = countStillWaitingAhead(entries, id);
   const mine = entries.find((e) => e.id === id);
+
+  // Best-effort (sendAutomatedTemplate never throws) — a patient booking
+  // online never sees this fail even if WhatsApp isn't connected or the
+  // send itself errors. Still awaited: on serverless, an un-awaited fetch
+  // can get frozen mid-flight once the response is sent. Walk-ins don't get
+  // this (they're already at the desk); online bookings do, since
+  // confirming a reservation made from home is the whole point.
+  await sendAutomatedTemplate({
+    clinicId,
+    category: "appointment_confirmation",
+    toPhone: phone,
+    params: [name, input.date, formatTo12Hour(input.time)],
+    patientId: null,
+    patientName: name,
+  });
 
   return { token: mine?.token_number ?? 0, ahead };
 }

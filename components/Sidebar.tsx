@@ -14,6 +14,8 @@ import {
   X,
   PanelLeftClose,
   PanelLeft,
+  Inbox,
+  MessageCircle,
 } from "lucide-react";
 import LogoutButton from "@/components/LogoutButton";
 import { useSidebarCollapse } from "@/components/SidebarContext";
@@ -27,9 +29,11 @@ const NAV_ITEMS: {
 }[] = [
   { label: "Today", href: "/dashboard", icon: LayoutDashboard },
   { label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
+  { label: "Inbox", href: "/dashboard/inbox", icon: Inbox },
   { label: "Patients", href: "/dashboard/patients", icon: Users },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3, roles: ["doctor"] },
   { label: "Attendance", href: "/dashboard/attendance", icon: Clock },
+  { label: "Communication", href: "/dashboard/communication", icon: MessageCircle, roles: ["doctor"] },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

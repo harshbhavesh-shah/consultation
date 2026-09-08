@@ -75,6 +75,14 @@
       ]
     },
     {
+      "collectionGroup": "whatsappConversations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "clinicId", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "attendance",
       "queryScope": "COLLECTION",
       "fields": [

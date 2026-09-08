@@ -114,5 +114,38 @@ service cloud.firestore {
       allow read: if belongsToClinic(resource.data) && isDoctor();
       allow write: if belongsToClinic(request.resource.data) && isDoctor();
     }
+
+    // WhatsApp (Meta Cloud API) connection credentials — contains
+    // accessToken/appSecret, so it's read-only for clients (the
+    // Communication settings page reads it server-side via the Admin SDK,
+    // which bypasses these rules) and never client-writable at all.
+    match /whatsappConnections/{clinicId} {
+      allow read: if isSignedIn() && request.auth.token.clinicId == clinicId;
+      allow write: if false;
+    }
+
+    // Message template metadata (name/category/language/preview) — no
+    // secrets, but still admin-SDK-managed only, same reasoning as /staff.
+    match /messageTemplates/{templateId} {
+      allow read: if belongsToClinic(resource.data);
+      allow write: if false;
+    }
+
+    // The Inbox reads these directly from the client via onSnapshot for
+    // live updates (components/inbox/InboxClient.tsx) — everything else in
+    // this app reads server-side, but a live listener needs a client-side
+    // Firestore read. Writes still only ever happen server-side (the
+    // webhook handler and the Inbox's reply/send actions, both using the
+    // Admin SDK), so these stay client-read-only just like appointments are
+    // client-write-only... in reverse.
+    match /whatsappConversations/{conversationId} {
+      allow read: if belongsToClinic(resource.data);
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow read: if belongsToClinic(resource.data);
+        allow write: if false;
+      }
+    }
   }
 }
