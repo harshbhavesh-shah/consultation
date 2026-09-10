@@ -187,7 +187,7 @@ export default function InboxClient({
                 <button
                   onClick={handleSend}
                   disabled={sending || !draft.trim()}
-                  className="flex-shrink-0 rounded-md bg-brown-900 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
+                  className="flex-shrink-0 rounded-md bg-gold-500 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
                 >
                   Send
                 </button>

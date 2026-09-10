@@ -38,7 +38,7 @@ export default function AttendanceClock({ clockedInAt }: { clockedInAt: number |
       <button
         onClick={handleClick}
         disabled={busy}
-        className="mt-4 rounded-md bg-brown-900 px-6 py-3 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
+        className="mt-4 rounded-md bg-gold-500 px-6 py-3 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
       >
         {busy ? "…" : "Clock In"}
       </button>

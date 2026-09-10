@@ -53,7 +53,7 @@ export default async function DashboardPage() {
 
       <Link
         href={`/dashboard/appointments?date=${today}`}
-        className="mt-6 inline-block rounded-md bg-brown-900 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600"
+        className="mt-6 inline-block rounded-md bg-gold-500 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600"
       >
         Go to today&apos;s appointments →
       </Link>

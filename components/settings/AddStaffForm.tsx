@@ -70,7 +70,7 @@ export default function AddStaffForm() {
       <button
         type="submit"
         disabled={saving}
-        className="rounded-md bg-brown-900 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
+        className="rounded-md bg-gold-500 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
       >
         {saving ? "Adding…" : "Add Staff Member"}
       </button>

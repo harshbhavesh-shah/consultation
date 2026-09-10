@@ -117,7 +117,7 @@ export default function AppointmentMiniPanel({
 
           <Link
             href={`/dashboard/appointments/new?editId=${appointment.id}`}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md bg-brown-900 py-1.5 text-xs font-semibold text-beige-200 transition-colors hover:bg-gold-600"
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md bg-gold-500 py-1.5 text-xs font-semibold text-beige-200 transition-colors hover:bg-gold-600"
           >
             <Pencil size={13} /> Edit This Appointment
           </Link>

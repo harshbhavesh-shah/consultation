@@ -11,7 +11,7 @@ export default function WelcomePage() {
         <div className="space-y-3">
           <Link
             href="/login"
-            className="block w-full rounded-md bg-brown-900 py-2.5 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600"
+            className="block w-full rounded-md bg-gold-500 py-2.5 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600"
           >
             Log In
           </Link>

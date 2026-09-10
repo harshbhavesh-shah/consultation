@@ -33,7 +33,7 @@ export default async function AppointmentsPage({
           <DatePickerForm date={date} />
           <Link
             href={`/dashboard/appointments/new?date=${date}`}
-            className="flex items-center gap-1.5 rounded-md bg-brown-900 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600"
+            className="flex items-center gap-1.5 rounded-md bg-gold-500 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600"
           >
             <Plus size={16} />
             New

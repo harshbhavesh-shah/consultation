@@ -90,7 +90,7 @@ export default function CalendarDayView({
                   height,
                   left: `${column * widthPct}%`,
                   width: `calc(${widthPct}% - 4px)`,
-                  borderLeftColor: appointment.status === "Cancelled" ? "#9C8672" : "#A9812F",
+                  borderLeftColor: appointment.status === "Cancelled" ? "#8FA094" : "#3F6D5C",
                 }}
               >
                 <span className="truncate font-medium text-brown-900">{appointment.patient_name}</span>

@@ -42,7 +42,7 @@ export default function MessageTemplatesSection({
         <p className="text-xs text-brown-400">Names and language codes must exactly match what&apos;s approved in Meta.</p>
         <button
           onClick={() => setModalTemplate(null)}
-          className="flex items-center gap-1.5 rounded-md bg-brown-900 px-3 py-1.5 text-xs font-semibold text-beige-200 hover:bg-gold-600"
+          className="flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-xs font-semibold text-beige-200 hover:bg-gold-600"
         >
           <Plus size={14} /> New Template
         </button>
@@ -121,7 +121,7 @@ export default function MessageTemplatesSection({
             <button
               type="submit"
               disabled={sendingTest}
-              className="rounded-md bg-brown-900 px-4 py-2 text-sm font-semibold text-beige-200 hover:bg-gold-600 disabled:opacity-60"
+              className="rounded-md bg-gold-500 px-4 py-2 text-sm font-semibold text-beige-200 hover:bg-gold-600 disabled:opacity-60"
             >
               {sendingTest ? "Sending…" : "Send Test"}
             </button>

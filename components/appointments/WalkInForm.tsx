@@ -313,7 +313,7 @@ export default function WalkInForm({
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-brown-900 px-5 py-2.5 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
+            className="rounded-md bg-gold-500 px-5 py-2.5 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
           >
             {submitting ? "Saving…" : isEdit ? "Save Changes" : "Add Walk-in"}
           </button>
