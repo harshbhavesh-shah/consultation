@@ -1,19 +1,27 @@
 #!/usr/bin/env node
 /**
- * One-time historical import: reads every "real queue appointment" doc
+ * Historical + catch-up import: reads every "real queue appointment" doc
  * (service_type === "Consultation", not a session_log entry) from the
  * legacy Firebase project (appointment-booking-1f0d0, ASC_current's
  * admin.html/appointment.html/create.html) and creates matching Patient +
  * Appointment records in this app's Firestore project.
  *
- * Patient matching: by phone number, via findPatientsByPhone — reuses an
+ * Incremental by design: it loads scripts/idMap.json (if present) first and
+ * skips any legacyId already in it, so it's safe to run repeatedly — each
+ * run only imports what's new in the legacy system since the last run,
+ * appending to idMap.json rather than overwriting it. This is what makes it
+ * safe to use as an ad hoc "bring the systems back in sync" tool now that
+ * the live Apps Script bridge (appointment-sync/) is paused, not just a
+ * one-time bootstrap step.
+ *
+ * A legacy doc whose appointment_date is before MIN_SANE_DATE is treated as
+ * bad data (seen in practice: a stray 2002-01-01 row) and reported
+ * separately rather than imported or silently dropped — check it in the
+ * legacy system and decide by hand.
+ *
+ * Patient matching: by phone number, via a Firestore query — reuses an
  * existing patient if one matches, otherwise creates one, same dedup
  * reasoning as the sibling apps' quick-add flows.
- *
- * Also writes idMap.json — legacyId -> consultationId pairs — which seeds
- * the Google Sheet's IdMap tab so the live Apps Script sync bridge doesn't
- * try to re-import (and duplicate) anything this script already brought in.
- * Run this ONCE, before turning on the live sync trigger.
  *
  * Usage:
  *   node scripts/importLegacyAppointments.mjs --clinicId <consultation clinicId> [--dry-run]
@@ -24,9 +32,12 @@
 
 import { config } from "dotenv";
 config({ path: ".env.local" });
-import { writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+
+const IDMAP_PATH = "scripts/idMap.json";
+const MIN_SANE_DATE = "2020-01-01"; // anything older is treated as bad legacy data, not history worth importing
 
 function parseArgs() {
   const args = { dryRun: false };
@@ -121,14 +132,29 @@ async function main() {
   const consultDb = getFirestore(consultApp);
   const legacyDb = getFirestore(legacyApp);
 
+  const existingIdMap = existsSync(IDMAP_PATH) ? JSON.parse(readFileSync(IDMAP_PATH, "utf8")) : [];
+  const alreadyMapped = new Set(existingIdMap.map((r) => r.legacyId));
+  console.log(`Loaded ${existingIdMap.length} existing rows from ${IDMAP_PATH}.`);
+
   console.log(`Reading legacy appointments from project "${legacyCreds.projectId}"...`);
   const snap = await legacyDb.collection("appointments").get();
 
   const eligible = snap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((a) => a.service_type === "Consultation" && a.entry_kind !== "session_log");
+    .filter((a) => a.service_type === "Consultation" && a.entry_kind !== "session_log")
+    .filter((a) => !alreadyMapped.has(a.id)); // incremental: skip anything already imported
 
-  console.log(`Found ${snap.size} total legacy appointment docs, ${eligible.length} eligible (Consultation, not a session log).`);
+  console.log(`Found ${snap.size} total legacy appointment docs, ${eligible.length} eligible and not yet imported.`);
+
+  const suspiciousDates = eligible.filter((a) => a.appointment_date && a.appointment_date < MIN_SANE_DATE);
+  const toImport = eligible.filter((a) => !a.appointment_date || a.appointment_date >= MIN_SANE_DATE);
+  if (suspiciousDates.length > 0) {
+    console.log(`\n${suspiciousDates.length} doc(s) have an appointment_date before ${MIN_SANE_DATE} — skipping, check these by hand:`);
+    for (const a of suspiciousDates) {
+      console.log(`  ${a.id}  date=${a.appointment_date}  ${a.patient_name || "(no name)"}  ${a.patient_phone || "(no phone)"}`);
+    }
+    console.log("");
+  }
 
   const idMap = [];
   const patientCache = new Map(); // phone -> consultation patientId, avoids repeat lookups across many appointments for the same patient
@@ -138,7 +164,7 @@ async function main() {
   let patientsCreated = 0;
   let skipped = 0;
 
-  for (const a of eligible) {
+  for (const a of toImport) {
     const phone = (a.patient_phone || "").trim();
     const name = (a.patient_name || "").trim();
     if (!phone || !name || !a.appointment_date || !a.appointment_time) {
@@ -233,15 +259,19 @@ async function main() {
     }
   }
 
-  writeFileSync("scripts/idMap.json", JSON.stringify(idMap, null, 2));
+  if (!dryRun) {
+    const combined = existingIdMap.concat(idMap);
+    writeFileSync(IDMAP_PATH, JSON.stringify(combined, null, 2));
+    console.log(`  Wrote ${IDMAP_PATH}: ${existingIdMap.length} existing + ${idMap.length} new = ${combined.length} rows.`);
+  }
 
   console.log("\nDone.");
-  console.log(`  Appointments created:   ${created}${dryRun ? " (dry run, nothing written)" : ""}`);
-  console.log(`  Patients matched:       ${patientsMatched}`);
-  console.log(`  Patients created:       ${patientsCreated}`);
-  console.log(`  Skipped (missing data): ${skipped}`);
-  console.log(`  Dates recomputed:       ${touchedDates.size}`);
-  console.log(`  Wrote scripts/idMap.json (${idMap.length} rows) — paste this into the Sheet's IdMap tab before enabling live sync.`);
+  console.log(`  Appointments created:    ${created}${dryRun ? " (dry run, nothing written)" : ""}`);
+  console.log(`  Patients matched:        ${patientsMatched}`);
+  console.log(`  Patients created:        ${patientsCreated}`);
+  console.log(`  Skipped (missing data):  ${skipped}`);
+  console.log(`  Skipped (bad date):      ${suspiciousDates.length}`);
+  console.log(`  Dates recomputed:        ${touchedDates.size}`);
 }
 
 main().catch((err) => {
