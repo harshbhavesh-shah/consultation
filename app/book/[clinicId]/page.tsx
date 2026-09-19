@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { generateDailySlots, formatTo12Hour, isBookableDate, MORNING_WINDOW } from "@/lib/slots";
+import { formatTo12Hour, isBookableDate } from "@/lib/slots";
 import { createPublicBookingAction } from "./actions";
 
 export default function BookPage({ params }: { params: { clinicId: string } }) {
@@ -11,14 +11,12 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
   const [phone, setPhone] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [morningSlots, setMorningSlots] = useState<string[]>([]);
+  const [eveningSlots, setEveningSlots] = useState<string[]>([]);
   const [bookedTimes, setBookedTimes] = useState<Set<string>>(new Set());
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const allSlots = useMemo(() => generateDailySlots(), []);
-  const morningSlots = allSlots.filter((t) => t < MORNING_WINDOW.end);
-  const eveningSlots = allSlots.filter((t) => t >= MORNING_WINDOW.end);
 
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -28,8 +26,26 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
     setTime("");
     fetch(`/api/book/${params.clinicId}/availability?date=${date}`)
       .then((res) => res.json())
-      .then((data) => setBookedTimes(new Set<string>(data.bookedTimes ?? [])))
-      .catch(() => setBookedTimes(new Set()))
+      .then((data) => {
+        if (data.closed) {
+          // The doctor has marked this date fully closed via the
+          // availability calendar — same treatment as picking a Sunday.
+          setError("We're closed that day — please pick another date.");
+          setDate("");
+          setMorningSlots([]);
+          setEveningSlots([]);
+          setBookedTimes(new Set());
+          return;
+        }
+        setMorningSlots(data.morningSlots ?? []);
+        setEveningSlots(data.eveningSlots ?? []);
+        setBookedTimes(new Set<string>(data.bookedTimes ?? []));
+      })
+      .catch(() => {
+        setMorningSlots([]);
+        setEveningSlots([]);
+        setBookedTimes(new Set());
+      })
       .finally(() => setLoadingSlots(false));
   }, [date, params.clinicId]);
 

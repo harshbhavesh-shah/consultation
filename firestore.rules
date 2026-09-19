@@ -108,6 +108,15 @@ service cloud.firestore {
       allow delete: if belongsToClinic(resource.data) && isDoctor();
     }
 
+    // Availability calendar overrides (closed days / custom shift hours).
+    // Read by both roles (matches ASC_current's calendar.html — reception
+    // can close the clinic for a day too), written only server-side via
+    // the Admin SDK.
+    match /availability/{overrideId} {
+      allow read: if belongsToClinic(resource.data);
+      allow write: if false;
+    }
+
     // Monthly bank-deposit reconciliation — doctor-only, same as the
     // analytics page it's shown on.
     match /cashDeposits/{depositId} {

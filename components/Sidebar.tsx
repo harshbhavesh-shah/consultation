@@ -16,6 +16,7 @@ import {
   PanelLeft,
   Inbox,
   MessageCircle,
+  CalendarClock,
 } from "lucide-react";
 import LogoutButton from "@/components/LogoutButton";
 import { useSidebarCollapse } from "@/components/SidebarContext";
@@ -33,6 +34,7 @@ const NAV_ITEMS: {
   { label: "Patients", href: "/dashboard/patients", icon: Users },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3, roles: ["doctor"] },
   { label: "Attendance", href: "/dashboard/attendance", icon: Clock },
+  { label: "Availability", href: "/dashboard/availability", icon: CalendarClock },
   { label: "Communication", href: "/dashboard/communication", icon: MessageCircle, roles: ["doctor"] },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

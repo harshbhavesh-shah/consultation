@@ -3,7 +3,8 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { getAppointmentsForDate, createAppointment } from "@/lib/firestore/appointments";
 import { reassignDailyTokens, countStillWaitingAhead } from "@/lib/tokenQueue";
-import { isBookableDate, formatTo12Hour } from "@/lib/slots";
+import { isBookableDate, generateDailySlots, formatTo12Hour } from "@/lib/slots";
+import { getAvailabilityOverride } from "@/lib/firestore/availability";
 import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 
 export interface BookingResult {
@@ -22,8 +23,15 @@ export async function createPublicBookingAction(
   if (!name || !phone || !input.date || !input.time) {
     return { error: "Please fill in all fields." };
   }
-  if (!isBookableDate(input.date)) {
+
+  // Authoritative re-check — the client's availability view (and the
+  // doctor's availability calendar behind it) can be stale by submit time.
+  const override = await getAvailabilityOverride(clinicId, input.date);
+  if (!isBookableDate(input.date, override)) {
     return { error: "That date isn't available for booking." };
+  }
+  if (!generateDailySlots(override).includes(input.time)) {
+    return { error: "That time isn't available for booking." };
   }
 
   const clinicDoc = await adminDb().collection("clinics").doc(clinicId).get();

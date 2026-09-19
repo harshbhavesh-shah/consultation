@@ -1,6 +1,7 @@
 // Single source of truth for bookable consultation slots — shared by the
 // public booking page and the staff walk-in form, so the two can never
 // drift out of sync the way ASC_current's appointment.html/create.html did.
+import type { AvailabilityOverride } from "@/types";
 
 export const SLOT_INTERVAL_MINUTES = 10;
 export const MORNING_WINDOW = { start: "10:00", end: "14:00" };
@@ -23,10 +24,24 @@ function toHHMM(totalMinutes: number): string {
   return `${h}:${m}`;
 }
 
-/** All bookable HH:MM slots for a day, morning window then evening window. */
-export function generateDailySlots(): string[] {
+/** All bookable HH:MM slots for a day, morning window then evening window.
+ * An `override` (from the availability calendar, see lib/firestore/
+ * availability.ts) narrows or closes either shift for this specific date —
+ * an empty start/end for a shift means that shift is closed for the date,
+ * same convention ASC_current's appointment.html used. */
+export function generateDailySlots(override?: AvailabilityOverride | null): string[] {
+  const morning = {
+    start: override ? override.morning_start : MORNING_WINDOW.start,
+    end: override ? override.morning_end : MORNING_WINDOW.end,
+  };
+  const evening = {
+    start: override ? override.evening_start : EVENING_WINDOW.start,
+    end: override ? override.evening_end : EVENING_WINDOW.end,
+  };
+
   const slots: string[] = [];
-  for (const window of [MORNING_WINDOW, EVENING_WINDOW]) {
+  for (const window of [morning, evening]) {
+    if (!window.start || !window.end) continue; // that shift is closed for this date
     for (let t = toMinutes(window.start); t < toMinutes(window.end); t += SLOT_INTERVAL_MINUTES) {
       slots.push(toHHMM(t));
     }
@@ -46,8 +61,12 @@ export function formatTo12Hour(hhmm: string): string {
   return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
-/** Sundays are closed; can't book in the past. */
-export function isBookableDate(dateStr: string): boolean {
+/** Sundays are closed; can't book in the past; a date the doctor has marked
+ * fully closed via the availability calendar is closed regardless of day
+ * of week (an override can only close a date further, never reopen a
+ * Sunday — same as ASC_current's appointment.html). */
+export function isBookableDate(dateStr: string, override?: AvailabilityOverride | null): boolean {
+  if (override?.unavailable) return false;
   const date = new Date(`${dateStr}T00:00:00`);
   if (date.getDay() === 0) return false;
   const today = new Date();

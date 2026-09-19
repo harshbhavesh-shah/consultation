@@ -159,6 +159,24 @@ export interface MessageTemplate {
   updatedAt: number;
 }
 
+// --- Availability calendar ---
+// One doc per (clinicId, date) — doc id `${clinicId}_${date}`. Absence of a
+// doc for a date means "default hours" (see lib/slots.ts DEFAULT hours).
+// Ported from ASC_current's calendar.html/appointment.html — closing a date
+// or narrowing its shift hours here immediately affects what a patient can
+// book on the public booking page.
+export interface AvailabilityOverride {
+  clinicId: string;
+  date: string; // YYYY-MM-DD
+  unavailable: boolean; // closed all day, not bookable regardless of shift times below
+  morning_start: string; // "" means the morning shift is closed this date
+  morning_end: string;
+  evening_start: string; // "" means the evening shift is closed this date
+  evening_end: string;
+  updatedAt: number;
+  updatedBy: string;
+}
+
 export type MessageDirection = "inbound" | "outbound";
 export type MessageDeliveryStatus = "queued" | "sent" | "delivered" | "read" | "failed";
 
