@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { GripVertical } from "lucide-react";
-import { formatTo12Hour, minutesPastSlot } from "@/lib/slots";
+import { formatTo12Hour } from "@/lib/slots";
 import { reorderAppointmentsAction } from "@/app/dashboard/appointments/actions";
-import { STATUS_STYLES } from "./statusStyles";
+import { STATUS_STYLES, statusLabel } from "./statusStyles";
 import AppointmentDetailPanel from "./AppointmentDetailPanel";
-import type { Appointment, AppointmentStatus, UserRole } from "@/types";
+import type { Appointment, UserRole } from "@/types";
 
 type Filter = "all" | "Booked" | "Visited" | "Cancelled";
 
@@ -242,15 +242,6 @@ function ShiftGroup({
       ))}
     </div>
   );
-}
-
-function statusLabel(appointment: Appointment, date: string): string {
-  if (appointment.status === "Booked") {
-    const late = minutesPastSlot(appointment.appointment_time, date);
-    return late > 0 ? `Waiting ${late} min` : "Booked";
-  }
-  const labels: Record<AppointmentStatus, string> = { Booked: "Booked", Visited: "Seen", Cancelled: "Cancelled" };
-  return labels[appointment.status];
 }
 
 function Row({

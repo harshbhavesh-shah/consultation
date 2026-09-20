@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import SegmentedControl from "./SegmentedControl";
+import DayRevenueBox from "./DayRevenueBox";
 
 export type ViewMode = "list" | "calendar";
 export type CalendarMode = "day" | "week" | "month";
@@ -20,6 +21,7 @@ export default function AppointmentsToolbar({
   onPrev,
   onNext,
   onToday,
+  revenue,
 }: {
   subtitle: string;
   newHref: string;
@@ -33,13 +35,17 @@ export default function AppointmentsToolbar({
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  revenue: number | null;
 }) {
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="font-display text-3xl font-medium text-brown-900 md:text-4xl">Appointments</h1>
-          <p className="text-sm text-brown-600">{subtitle}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-brown-600">{subtitle}</p>
+            {revenue !== null && <DayRevenueBox revenue={revenue} />}
+          </div>
         </div>
         <Link
           href={newHref}

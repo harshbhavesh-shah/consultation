@@ -178,6 +178,16 @@ export default function AppointmentsViewSwitcher({
 
   const newHref = `/dashboard/appointments/new?date=${viewMode === "list" ? date : toDateStr(anchor)}`;
 
+  // Revenue is only meaningful for a single viewed date — Week/Month show a
+  // range, so there's no "the viewed date" for them to report on.
+  const viewedDate = viewMode === "list" ? date : calendarMode === "day" ? toDateStr(anchor) : null;
+  const revenueVisible = viewedDate !== null && (role === "doctor" || (role === "reception" && viewedDate === today));
+  const revenue = revenueVisible
+    ? (viewMode === "list" ? appointments : calendarAppointments)
+        .filter((a) => a.appointment_date === viewedDate && a.status !== "Cancelled")
+        .reduce((sum, a) => sum + (typeof a.payment === "number" && a.payment > 0 ? a.payment : 0), 0)
+    : null;
+
   const isPanelOpen = !!panelAppointment;
   const legend: { label: string; dot: string }[] = [
     { label: "Seen", dot: STATUS_STYLES.Visited.dot },
@@ -200,6 +210,7 @@ export default function AppointmentsViewSwitcher({
         onPrev={handlePrev}
         onNext={handleNext}
         onToday={handleToday}
+        revenue={revenue}
       />
 
       {viewMode === "list" ? (

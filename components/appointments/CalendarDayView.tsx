@@ -1,19 +1,10 @@
 "use client";
 
 import { getDaySlots, slotIndexForTime, nowMinutesInWindow, formatTime12h, toDateStr, todayLocalStr } from "@/lib/calendar";
-import { STATUS_STYLES, STATUS_LABELS } from "./statusStyles";
-import { minutesPastSlot } from "@/lib/slots";
+import { STATUS_STYLES, statusLabel } from "./statusStyles";
 import type { Appointment } from "@/types";
 
 const SLOTS = getDaySlots();
-
-function chipLabel(appointment: Appointment, dateStr: string): string {
-  if (appointment.status === "Booked") {
-    const late = minutesPastSlot(appointment.appointment_time, dateStr);
-    return late > 0 ? `Waiting ${late} min` : "Booked";
-  }
-  return STATUS_LABELS[appointment.status];
-}
 
 export default function CalendarDayView({
   date,
@@ -74,7 +65,7 @@ export default function CalendarDayView({
                         </span>
                       </span>
                       <span className={`flex-none whitespace-nowrap text-xs font-medium ${status.text}`}>
-                        {chipLabel(a, dateStr)}
+                        {statusLabel(a, dateStr)}
                       </span>
                     </button>
                   );
