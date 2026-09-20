@@ -3,8 +3,9 @@ import { getSession } from "@/lib/session";
 import { getAppointmentsForDate } from "@/lib/firestore/appointments";
 import { getAttendanceForDate } from "@/lib/firestore/attendance";
 import { listClinicStaff } from "@/lib/firestore/staff";
-import { formatTo12Hour } from "@/lib/slots";
+import { formatTo12Hour, minutesPastSlot } from "@/lib/slots";
 import CallbackReminders from "@/components/CallbackReminders";
+import { STATUS_STYLES } from "@/components/appointments/statusStyles";
 import type { Appointment } from "@/types";
 
 function todayLocalStr(): string {
@@ -18,16 +19,6 @@ function greeting(): string {
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
-}
-
-// Appointments have no arrival/check-in timestamp, only their booked slot
-// time — this treats "past the slot time and still Booked" as waiting,
-// measured from the slot itself rather than a real arrival event.
-function minutesPastSlot(time: string, dateStr: string): number {
-  const [h, m] = time.split(":").map(Number);
-  const slot = new Date(`${dateStr}T00:00:00`);
-  slot.setHours(h, m, 0, 0);
-  return Math.round((Date.now() - slot.getTime()) / 60000);
 }
 
 function ageGender(a: Appointment): string {
@@ -73,9 +64,9 @@ export default async function DashboardPage() {
         : "Everyone booked for today has been seen.";
 
   const segments = [
-    { label: "Seen", count: seen.length, dot: "bg-emerald-600" },
-    { label: "Waiting", count: waiting.length, dot: "bg-amber-500" },
-    { label: "Cancelled", count: cancelled.length, dot: "bg-red-500" },
+    { label: "Seen", count: seen.length, dot: STATUS_STYLES.Visited.dot },
+    { label: "Waiting", count: waiting.length, dot: STATUS_STYLES.Booked.dot },
+    { label: "Cancelled", count: cancelled.length, dot: STATUS_STYLES.Cancelled.dot },
   ];
 
   return (
@@ -148,17 +139,14 @@ export default async function DashboardPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    {minutesPastSlot(current.appointment_time, today) > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                        Waiting {minutesPastSlot(current.appointment_time, today)} min
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-beige-200 px-2.5 py-1 text-xs font-medium text-brown-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-brown-400" />
-                        Booked
-                      </span>
-                    )}
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES.Booked.bg} ${STATUS_STYLES.Booked.text}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${STATUS_STYLES.Booked.dot}`} />
+                      {minutesPastSlot(current.appointment_time, today) > 0
+                        ? `Waiting ${minutesPastSlot(current.appointment_time, today)} min`
+                        : "Booked"}
+                    </span>
                     <span className="text-xs text-brown-400">
                       Booked {formatTo12Hour(current.appointment_time)}
                     </span>
@@ -187,17 +175,12 @@ export default async function DashboardPage() {
                         <div className="w-[76px] text-sm text-brown-600">{formatTo12Hour(a.appointment_time)}</div>
                         <div className="w-[170px] text-sm font-medium text-brown-900">{a.patient_name}</div>
                         <div className="flex-1 text-sm text-brown-600">{ageGender(a)} · {a.patient_phone}</div>
-                        {late ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                            Waiting {minutesPastSlot(a.appointment_time, today)} min
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-beige-200 px-2.5 py-1 text-xs font-medium text-brown-600">
-                            <span className="h-1.5 w-1.5 rounded-full bg-brown-400" />
-                            Booked
-                          </span>
-                        )}
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES.Booked.bg} ${STATUS_STYLES.Booked.text}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${STATUS_STYLES.Booked.dot}`} />
+                          {late ? `Waiting ${minutesPastSlot(a.appointment_time, today)} min` : "Booked"}
+                        </span>
                       </div>
                     </div>
                   );
@@ -233,7 +216,7 @@ export default async function DashboardPage() {
                     return (
                       <div key={s.uid} className="flex items-center gap-3">
                         <span
-                          className={`h-2 w-2 flex-shrink-0 rounded-full ${entry ? "bg-emerald-600" : "bg-brown-400/30"}`}
+                          className={`h-2 w-2 flex-shrink-0 rounded-full ${entry ? STATUS_STYLES.Visited.dot : "bg-brown-400/30"}`}
                         />
                         <div className="flex flex-col gap-0.5">
                           <span className="text-sm font-medium text-brown-900">{s.name}</span>

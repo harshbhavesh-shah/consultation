@@ -1,130 +1,178 @@
 "use client";
 
+import { useState } from "react";
 import {
-  CALENDAR_GRID_HEIGHT,
-  PIXELS_PER_HOUR,
-  DEFAULT_SLOT_MINUTES,
-  timeToGridTop,
-  gridTopToTime,
-  getHalfHourSlots,
+  getDaySlots,
+  slotIndexForTime,
+  nowMinutesInWindow,
   formatTime12h,
-  layoutOverlappingEvents,
   toDateStr,
   todayLocalStr,
 } from "@/lib/calendar";
 import { STATUS_STYLES } from "./statusStyles";
 import type { Appointment } from "@/types";
 
-const HALF_HOUR_SLOTS = getHalfHourSlots();
+const SLOTS = getDaySlots();
+const MAX_VISIBLE_PER_CELL = 3;
+const ROW_HEIGHT = 72;
+const CLOSED_HASH =
+  "repeating-linear-gradient(135deg, #EFEBE3 0px, #EFEBE3 5px, #F7F5F1 5px, #F7F5F1 10px)";
+
+function slotStartMinutes(slot: { label: string }): number {
+  const [h, m] = slot.label.split(":").map(Number);
+  return h * 60 + m;
+}
 
 export default function CalendarWeekView({
   days,
   appointments,
   onSelect,
-  onCreateAt,
 }: {
   days: Date[];
   appointments: Appointment[];
   onSelect: (appt: Appointment) => void;
-  onCreateAt: (date: string, time: string) => void;
 }) {
   const today = todayLocalStr();
+  const nowMinutes = nowMinutesInWindow();
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  function handleGridClick(e: React.MouseEvent<HTMLDivElement>, dateStr: string) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    onCreateAt(dateStr, gridTopToTime(y));
+  const byDay = new Map<string, Map<number, Appointment[]>>();
+  for (const d of days) {
+    const dateStr = toDateStr(d);
+    const bySlot = new Map<number, Appointment[]>();
+    for (const a of appointments) {
+      if (a.appointment_date !== dateStr) continue;
+      const idx = slotIndexForTime(a.appointment_time);
+      const list = bySlot.get(idx) ?? [];
+      list.push(a);
+      bySlot.set(idx, list);
+    }
+    Array.from(bySlot.values()).forEach((list) => list.sort((a, b) => a.appointment_time.localeCompare(b.appointment_time)));
+    byDay.set(dateStr, bySlot);
   }
 
   return (
     <div className="overflow-x-auto rounded-xl bg-surface shadow-soft ring-1 ring-beige-300">
-      <div className="flex min-w-[720px]">
-        <div className="w-16 flex-shrink-0 border-r border-beige-300" />
+      <div
+        className="grid min-w-[900px]"
+        style={{ gridTemplateColumns: `64px repeat(7, minmax(0, 1fr))` }}
+      >
+        <div />
         {days.map((d) => {
           const dateStr = toDateStr(d);
           const isToday = dateStr === today;
+          const closed = d.getDay() === 0;
+          const count = appointments.filter((a) => a.appointment_date === dateStr).length;
           return (
             <div
               key={dateStr}
-              className={`flex-1 border-r border-beige-300 py-3 text-center last:border-r-0 ${isToday ? "bg-gold-100/40" : ""}`}
+              className={`flex flex-col items-center justify-center gap-0.5 border-l border-beige-200 py-3 ${isToday ? "bg-[#E6EEEC]" : ""}`}
             >
-              <div className="text-xs uppercase tracking-wide text-brown-400">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-brown-400">
                 {d.toLocaleDateString("en-US", { weekday: "short" })}
-              </div>
-              <div
-                className={`mt-0.5 font-display text-base font-medium ${isToday ? "text-gold-600" : "text-brown-900"}`}
-              >
-                {d.getDate()}
-              </div>
+                {isToday ? ", today" : ""}
+              </span>
+              <span className="font-display text-2xl text-brown-900">{d.getDate()}</span>
+              <span className="text-xs text-brown-400">
+                {closed && count === 0 ? "Closed" : `${count} appointment${count === 1 ? "" : "s"}`}
+              </span>
             </div>
           );
         })}
-      </div>
 
-      <div className="flex min-w-[720px]">
-        <div className="w-16 flex-shrink-0">
-          {HALF_HOUR_SLOTS.filter((slot) => slot.isHour).map((slot) => (
-            <div key={slot.top} style={{ height: PIXELS_PER_HOUR }} className="relative">
-              <span className="absolute -top-2 right-2 text-xs text-brown-400">{formatTime12h(slot.label)}</span>
-            </div>
-          ))}
-        </div>
-
-        {days.map((d) => {
-          const dateStr = toDateStr(d);
-          const dayAppointments = appointments.filter((a) => a.appointment_date === dateStr);
-          const laidOut = layoutOverlappingEvents(dayAppointments);
-          const isToday = dateStr === today;
+        {SLOTS.map((slot, i) => {
+          const nowHere =
+            nowMinutes !== null &&
+            nowMinutes >= slotStartMinutes(slot) &&
+            (i === SLOTS.length - 1 || nowMinutes < slotStartMinutes(SLOTS[i + 1]));
+          const todayIndex = days.findIndex((d) => toDateStr(d) === today);
 
           return (
-            <div
-              key={dateStr}
-              className={`relative flex-1 cursor-pointer border-l border-beige-300 ${isToday ? "bg-gold-100/10" : ""}`}
-              style={{ height: CALENDAR_GRID_HEIGHT }}
-              onClick={(e) => handleGridClick(e, dateStr)}
-            >
-              {HALF_HOUR_SLOTS.map((slot) => (
-                <div
-                  key={slot.top}
-                  className={`absolute left-0 right-0 border-t ${slot.isHour ? "border-beige-200" : "border-beige-200/50"}`}
-                  style={{ top: slot.top }}
-                />
-              ))}
-
-              {laidOut.map(({ appointment, column, totalColumns }) => {
-                const top = timeToGridTop(appointment.appointment_time);
-                // -2px so back-to-back appointments get a visible gap
-                // instead of reading as one merged block — they share the
-                // same background color, so without a gap there's no seam.
-                const height = Math.max((DEFAULT_SLOT_MINUTES / 60) * PIXELS_PER_HOUR - 2, 14);
-                const widthPct = 100 / totalColumns;
-                const statusStyle = STATUS_STYLES[appointment.status];
+            <FragmentRow key={slot.index}>
+              {nowHere && todayIndex !== -1 && <NowMarkerRow todayIndex={todayIndex} />}
+              <div
+                className="border-t border-beige-200 pr-2.5 pt-2 text-right text-[11px] text-brown-400"
+                style={{ minHeight: ROW_HEIGHT }}
+              >
+                {formatTime12h(slot.label)}
+              </div>
+              {days.map((d) => {
+                const dateStr = toDateStr(d);
+                const isToday = dateStr === today;
+                const closed = d.getDay() === 0;
+                const items = byDay.get(dateStr)?.get(slot.index) ?? [];
+                const cellKey = `${dateStr}-${slot.index}`;
+                const isExpanded = expanded.has(cellKey);
+                const visible = isExpanded ? items : items.slice(0, MAX_VISIBLE_PER_CELL);
+                const hidden = items.length - visible.length;
 
                 return (
-                  <button
-                    key={appointment.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelect(appointment);
-                    }}
-                    title={`${formatTime12h(appointment.appointment_time)} — ${appointment.patient_name}`}
-                    className={`absolute flex items-center overflow-hidden rounded-md border-l-2 px-2 text-left text-[11px] shadow-sm outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-gold-500 ${statusStyle.bg}`}
+                  <div
+                    key={dateStr}
+                    className="min-w-0 overflow-hidden border-l border-t border-beige-200 p-1.5"
                     style={{
-                      top,
-                      height,
-                      left: `${column * widthPct}%`,
-                      width: `calc(${widthPct}% - 3px)`,
-                      borderLeftColor: appointment.status === "Cancelled" ? "#8FA094" : "#3F6D5C",
+                      minHeight: ROW_HEIGHT,
+                      background: closed && items.length === 0 ? CLOSED_HASH : isToday ? "#F4F9F8" : "#FFFFFF",
                     }}
                   >
-                    <span className="truncate font-medium text-brown-900">{appointment.patient_name}</span>
-                  </button>
+                    <div className="flex flex-col gap-1">
+                      {visible.map((a) => {
+                        const status = STATUS_STYLES[a.status];
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => onSelect(a)}
+                            title={`${formatTime12h(a.appointment_time)} — ${a.patient_name}`}
+                            className={`flex h-[22px] items-center gap-1.5 rounded-md px-1.5 text-left text-xs font-medium text-brown-900 ${status.bg}`}
+                          >
+                            <span className={`h-1.5 w-1.5 flex-none rounded-full ${status.dot}`} />
+                            <span className="truncate">{a.patient_name}</span>
+                          </button>
+                        );
+                      })}
+                      {hidden > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpanded((prev) => new Set(prev).add(cellKey))}
+                          className="flex h-[22px] items-center px-1.5 text-left text-xs font-medium text-brown-600 hover:underline"
+                        >
+                          +{hidden} more
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
-            </div>
+            </FragmentRow>
           );
         })}
       </div>
     </div>
+  );
+}
+
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+// Rendered as an extra grid row in normal flow (not absolutely positioned),
+// so it never has to assume a fixed row height — cells can still grow to
+// fit wrapped/expanded content without throwing the marker off.
+function NowMarkerRow({ todayIndex }: { todayIndex: number }) {
+  const now = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return (
+    <>
+      <div className="relative">
+        <span className="absolute -top-2.5 right-0 whitespace-nowrap rounded-full bg-brown-900 px-2 py-0.5 text-[10px] font-medium text-white">
+          {now}
+        </span>
+      </div>
+      {Array.from({ length: 7 }, (_, i) => (
+        <div key={i} className="relative">
+          {i === todayIndex && <div className="absolute inset-x-0 top-0 h-[2px] bg-brown-900" />}
+        </div>
+      ))}
+    </>
   );
 }

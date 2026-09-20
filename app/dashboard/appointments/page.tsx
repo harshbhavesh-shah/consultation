@@ -1,9 +1,6 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getAppointmentsForDate } from "@/lib/firestore/appointments";
 import AppointmentsViewSwitcher from "@/components/appointments/AppointmentsViewSwitcher";
-import DatePickerForm from "@/components/appointments/DatePickerForm";
 
 function todayLocalStr(): string {
   const now = new Date();
@@ -22,26 +19,5 @@ export default async function AppointmentsPage({
   const date = searchParams.date || todayLocalStr();
   const appointments = await getAppointmentsForDate(session.clinicId, date);
 
-  return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-brown-400">Appointments</p>
-          <h1 className="mt-1 font-display text-2xl text-brown-900">{date}</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <DatePickerForm date={date} />
-          <Link
-            href={`/dashboard/appointments/new?date=${date}`}
-            className="flex items-center gap-1.5 rounded-md bg-gold-500 px-4 py-2 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600"
-          >
-            <Plus size={16} />
-            New
-          </Link>
-        </div>
-      </div>
-
-      <AppointmentsViewSwitcher appointments={appointments} role={session.role} date={date} />
-    </div>
-  );
+  return <AppointmentsViewSwitcher appointments={appointments} role={session.role} date={date} />;
 }

@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
-import { Trash2, Pencil, GripVertical } from "lucide-react";
-import { formatTo12Hour } from "@/lib/slots";
-import {
-  updateAppointmentFieldAction,
-  toggleVisitedAction,
-  deleteAppointmentAction,
-  reorderAppointmentsAction,
-} from "@/app/dashboard/appointments/actions";
-import type { Appointment, UserRole } from "@/types";
+import { useEffect, useState } from "react";
+import { GripVertical } from "lucide-react";
+import { formatTo12Hour, minutesPastSlot } from "@/lib/slots";
+import { reorderAppointmentsAction } from "@/app/dashboard/appointments/actions";
+import { STATUS_STYLES } from "./statusStyles";
+import AppointmentDetailPanel from "./AppointmentDetailPanel";
+import type { Appointment, AppointmentStatus, UserRole } from "@/types";
+
+type Filter = "all" | "Booked" | "Visited" | "Cancelled";
+
+function ageGender(a: Appointment): string {
+  const age = a.age !== "" ? `${a.age} yrs` : "";
+  return [a.gender, age].filter(Boolean).join(", ") || "—";
+}
+
+function pickDefault(appointments: Appointment[]): string | null {
+  const waiting = appointments.find((a) => a.status === "Booked");
+  return (waiting ?? appointments[0])?.id ?? null;
+}
 
 export default function AppointmentsTable({
   appointments,
@@ -21,99 +29,157 @@ export default function AppointmentsTable({
   role: UserRole;
   date: string;
 }) {
-  const [shift, setShift] = useState<"morning" | "afternoon">("morning");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(() => pickDefault(appointments));
 
-  const morning = appointments.filter((a) => a.shift === "morning").sort((a, b) => a.token_number - b.token_number);
-  const afternoon = appointments
-    .filter((a) => a.shift === "afternoon")
-    .sort((a, b) => a.token_number - b.token_number);
-  const active = shift === "morning" ? morning : afternoon;
+  useEffect(() => {
+    setSelectedId((current) =>
+      current && appointments.some((a) => a.id === current) ? current : pickDefault(appointments)
+    );
+  }, [appointments]);
+
+  const counts: Record<Filter, number> = {
+    all: appointments.length,
+    Booked: appointments.filter((a) => a.status === "Booked").length,
+    Visited: appointments.filter((a) => a.status === "Visited").length,
+    Cancelled: appointments.filter((a) => a.status === "Cancelled").length,
+  };
+
+  const filtered = filter === "all" ? appointments : appointments.filter((a) => a.status === filter);
+  const morning = filtered.filter((a) => a.shift === "morning").sort((a, b) => a.token_number - b.token_number);
+  const afternoon = filtered.filter((a) => a.shift === "afternoon").sort((a, b) => a.token_number - b.token_number);
+
+  const selected = appointments.find((a) => a.id === selectedId) ?? null;
 
   return (
-    <div>
-      <div className="mb-4 flex gap-1 rounded-md bg-beige-200 p-1 text-sm">
-        <ShiftTab label="Morning" count={morning.length} active={shift === "morning"} onClick={() => setShift("morning")} />
-        <ShiftTab
-          label="Afternoon"
-          count={afternoon.length}
-          active={shift === "afternoon"}
-          onClick={() => setShift("afternoon")}
-        />
-      </div>
-      <TokenQueueStrip appointments={active} />
-      <ShiftSection appointments={active} role={role} date={date} />
-    </div>
-  );
-}
-
-function ShiftTab({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 rounded px-4 py-2 font-medium transition-colors ${
-        active ? "bg-surface text-brown-900 shadow-soft" : "text-brown-600 hover:text-brown-900"
-      }`}
-    >
-      {label} <span className="text-xs text-brown-400">({count})</span>
-    </button>
-  );
-}
-
-function TokenQueueStrip({ appointments }: { appointments: Appointment[] }) {
-  if (appointments.length === 0) return null;
-  return (
-    <div className="mb-4 flex gap-3 overflow-x-auto pb-2">
-      {appointments.map((a) => (
-        <div
-          key={a.id}
-          className="flex flex-shrink-0 items-center gap-2 rounded-lg bg-gold-100 px-3 py-2 text-xs ring-1 ring-gold-500/20"
-        >
-          <span className="font-display text-base font-normal text-gold-600">#{a.token_number}</span>
-          <div>
-            <div className="whitespace-nowrap font-medium text-brown-900">{a.patient_name}</div>
-            <div className="whitespace-nowrap text-brown-400">
-              {formatTo12Hour(a.appointment_time)} ·{" "}
-              {a.entry_source === "walkin" ? "Walk-in" : "Online"} ·{" "}
-              {a.status === "Visited" ? "Seen" : "Waiting"}
-            </div>
-          </div>
+    <div className="flex flex-col gap-4">
+      <FilterPills filter={filter} onChange={setFilter} counts={counts} />
+      <div className="flex items-start gap-6">
+        <div className="min-w-0 flex-1 overflow-hidden rounded-xl bg-surface shadow-soft ring-1 ring-beige-300">
+          {filtered.length === 0 ? (
+            <div className="p-8 text-center text-sm text-brown-400">No appointments match this filter.</div>
+          ) : (
+            <>
+              <ColumnHeader />
+              {morning.length > 0 && (
+                <ShiftGroup
+                  label="Morning"
+                  items={morning}
+                  role={role}
+                  date={date}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  allowReorder={filter === "all"}
+                />
+              )}
+              {afternoon.length > 0 && (
+                <ShiftGroup
+                  label="Afternoon"
+                  items={afternoon}
+                  role={role}
+                  date={date}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  allowReorder={filter === "all"}
+                />
+              )}
+            </>
+          )}
         </div>
-      ))}
+
+        {selected && (
+          <AppointmentDetailPanel
+            appointment={selected}
+            role={role}
+            date={date}
+            onDeleted={() => setSelectedId(null)}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-function ShiftSection({
-  appointments,
+function FilterPills({
+  filter,
+  onChange,
+  counts,
+}: {
+  filter: Filter;
+  onChange: (f: Filter) => void;
+  counts: Record<Filter, number>;
+}) {
+  const options: { key: Filter; label: string; dot?: string }[] = [
+    { key: "all", label: "All" },
+    { key: "Booked", label: "Waiting", dot: STATUS_STYLES.Booked.dot },
+    { key: "Visited", label: "Seen", dot: STATUS_STYLES.Visited.dot },
+    { key: "Cancelled", label: "Cancelled", dot: STATUS_STYLES.Cancelled.dot },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const active = filter === o.key;
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onChange(o.key)}
+            className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors ${
+              active
+                ? "border-brown-900 bg-brown-900 text-white"
+                : "border-beige-300 bg-surface text-brown-900 hover:bg-beige-200"
+            }`}
+          >
+            {o.dot && <span className={`h-1.5 w-1.5 rounded-full ${o.dot}`} />}
+            {o.label}
+            <span className={active ? "text-white/70" : "text-brown-400"}>{counts[o.key]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ColumnHeader() {
+  return (
+    <div className="flex items-center gap-3 px-5 pb-2 pt-3.5 text-[11px] font-medium uppercase tracking-wide text-brown-400">
+      <div className="w-4 flex-none" />
+      <div className="w-16 flex-none">Time</div>
+      <div className="w-9 flex-none">Tkn</div>
+      <div className="flex-1">Patient</div>
+      <div className="w-[168px] flex-none">Status</div>
+      <div className="w-20 flex-none">Payment</div>
+      <div className="w-20 flex-none">Source</div>
+    </div>
+  );
+}
+
+function ShiftGroup({
+  label,
+  items,
   role,
   date,
+  selectedId,
+  onSelect,
+  allowReorder,
 }: {
-  appointments: Appointment[];
+  label: string;
+  items: Appointment[];
   role: UserRole;
   date: string;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  allowReorder: boolean;
 }) {
-  // Local order, separate from the server-sorted prop, so a drag can be
-  // reflected immediately without waiting on the round-trip — resynced
-  // whenever the underlying data actually changes (date/shift switch,
-  // revalidation after any edit).
-  const [order, setOrder] = useState(appointments);
+  const [order, setOrder] = useState(items);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
-    setOrder(appointments);
-  }, [appointments]);
+    setOrder(items);
+  }, [items]);
 
   function handleDrop(targetId: string) {
     setDragOverId(null);
@@ -153,66 +219,48 @@ function ShiftSection({
   }
 
   return (
-    <div>
-      {order.length === 0 ? (
-        <div className="rounded-xl bg-surface p-6 text-center text-sm text-brown-400 shadow-soft ring-1 ring-beige-300">
-          No appointments in this shift.
-        </div>
-      ) : (
-        <div className={`overflow-x-auto rounded-xl bg-surface shadow-soft ring-1 ring-beige-300 ${reordering ? "opacity-60" : ""}`}>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-beige-300 text-xs uppercase tracking-wide text-brown-400">
-                <Th nowrap></Th>
-                <Th nowrap>Done</Th>
-                <Th nowrap>Time</Th>
-                <Th>Name</Th>
-                <Th nowrap>Contact Number</Th>
-                <Th nowrap>Payment</Th>
-                <Th nowrap>Age</Th>
-                <Th>Address</Th>
-                <Th nowrap>Type</Th>
-                <Th>Reference</Th>
-                <Th>Diagnosis</Th>
-                <Th nowrap>Follow-up</Th>
-                <Th nowrap>Call-back</Th>
-                <Th nowrap>Source</Th>
-                <Th></Th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.map((a) => (
-                <Row
-                  key={a.id}
-                  appointment={a}
-                  role={role}
-                  date={date}
-                  isDragOver={dragOverId === a.id}
-                  onDragStart={() => setDraggedId(a.id)}
-                  onDragOver={() => setDragOverId(a.id)}
-                  onDragLeave={() => setDragOverId((id) => (id === a.id ? null : id))}
-                  onDrop={() => handleDrop(a.id)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div className={reordering ? "opacity-60" : ""}>
+      <div className="flex items-baseline gap-2 bg-[#FAF8F4] px-5 py-2 text-xs font-medium uppercase tracking-wide text-brown-400 ring-1 ring-inset ring-beige-200">
+        {label}
+        <span className="normal-case tracking-normal text-brown-400">{order.length}</span>
+      </div>
+      {order.map((a) => (
+        <Row
+          key={a.id}
+          appointment={a}
+          role={role}
+          date={date}
+          selected={selectedId === a.id}
+          isDragOver={dragOverId === a.id}
+          draggable={allowReorder}
+          onSelect={() => onSelect(a.id)}
+          onDragStart={() => setDraggedId(a.id)}
+          onDragOver={() => setDragOverId(a.id)}
+          onDragLeave={() => setDragOverId((id) => (id === a.id ? null : id))}
+          onDrop={() => handleDrop(a.id)}
+        />
+      ))}
     </div>
   );
 }
 
-function Th({ children, nowrap }: { children?: React.ReactNode; nowrap?: boolean }) {
-  return (
-    <th className={`px-2 py-2.5 font-medium ${nowrap ? "whitespace-nowrap" : ""}`}>{children}</th>
-  );
+function statusLabel(appointment: Appointment, date: string): string {
+  if (appointment.status === "Booked") {
+    const late = minutesPastSlot(appointment.appointment_time, date);
+    return late > 0 ? `Waiting ${late} min` : "Booked";
+  }
+  const labels: Record<AppointmentStatus, string> = { Booked: "Booked", Visited: "Seen", Cancelled: "Cancelled" };
+  return labels[appointment.status];
 }
 
 function Row({
   appointment,
   role,
   date,
+  selected,
   isDragOver,
+  draggable,
+  onSelect,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -221,39 +269,23 @@ function Row({
   appointment: Appointment;
   role: UserRole;
   date: string;
+  selected: boolean;
   isDragOver: boolean;
+  draggable: boolean;
+  onSelect: () => void;
   onDragStart: () => void;
   onDragOver: () => void;
   onDragLeave: () => void;
   onDrop: () => void;
 }) {
-  const [, startTransition] = useTransition();
   const locked = role === "reception" && appointment.status === "Visited";
-  const [busy, setBusy] = useState(false);
-
-  function saveField(patch: Partial<Appointment>) {
-    startTransition(async () => {
-      await updateAppointmentFieldAction(appointment.id, patch);
-    });
-  }
-
-  async function handleToggleVisited(checked: boolean) {
-    setBusy(true);
-    const result = await toggleVisitedAction(appointment.id, checked);
-    setBusy(false);
-    if (result.error) alert(result.error);
-  }
-
-  async function handleDelete() {
-    if (!confirm(`Delete appointment for ${appointment.patient_name}?`)) return;
-    setBusy(true);
-    const result = await deleteAppointmentAction(appointment.id, date);
-    setBusy(false);
-    if (result.error) alert(result.error);
-  }
+  const canDrag = draggable && !locked;
+  const status = STATUS_STYLES[appointment.status];
 
   return (
-    <tr
+    <button
+      type="button"
+      onClick={onSelect}
       onDragOver={(e) => {
         e.preventDefault();
         onDragOver();
@@ -263,194 +295,52 @@ function Row({
         e.preventDefault();
         onDrop();
       }}
-      className={`border-b border-beige-300 last:border-0 hover:bg-canvas ${
-        isDragOver
-          ? "bg-gold-100"
-          : appointment.status === "Visited"
-            ? "bg-green-50/70"
-            : appointment.entry_source === "online"
-              ? "bg-blue-50/50"
-              : ""
+      className={`flex w-full items-center gap-3 border-t border-beige-200 px-5 py-3.5 text-left transition-colors first:border-t-0 ${
+        selected ? "bg-[#EDF3F2]" : isDragOver ? "bg-gold-100" : "bg-surface hover:bg-canvas"
       }`}
     >
-      <td className="whitespace-nowrap px-2 py-2 align-middle">
+      <span
+        draggable={canDrag}
+        onDragStart={(e) => {
+          if (!canDrag) return;
+          e.stopPropagation();
+          onDragStart();
+        }}
+        onClick={(e) => e.stopPropagation()}
+        title={canDrag ? "Drag to reorder" : undefined}
+        className={`w-4 flex-none ${canDrag ? "cursor-grab text-brown-400/60 hover:text-gold-600 active:cursor-grabbing" : "text-transparent"}`}
+      >
+        <GripVertical size={16} />
+      </span>
+      <span className="w-16 flex-none text-sm text-brown-600">{formatTo12Hour(appointment.appointment_time)}</span>
+      <span className="w-9 flex-none text-[13px] text-brown-400">#{appointment.token_number}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-medium text-brown-900">{appointment.patient_name}</span>
+        <span className="block truncate text-[13px] text-brown-400">{ageGender(appointment)}</span>
+      </span>
+      <span className="flex w-[168px] flex-none items-center gap-1.5">
         <span
-          draggable={!locked}
-          onDragStart={onDragStart}
-          title={locked ? "Completed visits can't be reordered by reception" : "Drag to reorder"}
-          className={locked ? "cursor-not-allowed text-brown-400/40" : "cursor-grab text-brown-400 hover:text-gold-600 active:cursor-grabbing"}
+          className={`inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[13px] font-medium ${status.bg} ${status.text}`}
         >
-          <GripVertical size={16} />
+          <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+          {statusLabel(appointment, date)}
         </span>
-      </td>
-      <td className="whitespace-nowrap px-2 py-2 align-middle">
-        <input
-          type="checkbox"
-          checked={appointment.status === "Visited"}
-          disabled={busy || (role === "reception" && appointment.status === "Visited")}
-          onChange={(e) => handleToggleVisited(e.target.checked)}
-          className="h-4 w-4 accent-gold-600"
-        />
-      </td>
-      <td className="whitespace-nowrap px-2 py-2 align-middle text-brown-700">
-        {formatTo12Hour(appointment.appointment_time)}
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <div className="flex items-center gap-1.5 whitespace-nowrap">
-          <span className="flex-shrink-0 rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-medium text-gold-600">
-            #{appointment.token_number}
+      </span>
+      <span className="w-20 flex-none">
+        {appointment.payment !== "" ? (
+          <span className="flex flex-col">
+            <span className="text-sm font-medium text-brown-900">₹{appointment.payment}</span>
+            {appointment.payment_type && <span className="text-xs text-brown-400">{appointment.payment_type}</span>}
           </span>
-          <span className="font-medium text-brown-900">{appointment.patient_name}</span>
-        </div>
-        {appointment.gender && (
-          <div className="whitespace-nowrap text-xs text-brown-400">{appointment.gender}</div>
+        ) : (
+          <span className="text-xs text-brown-400">Not paid</span>
         )}
-      </td>
-      <td className="whitespace-nowrap px-2 py-2 align-middle text-brown-700">{appointment.patient_phone}</td>
-      <td className="px-2 py-2 align-middle">
-        <EditableNumber
-          value={appointment.payment}
-          disabled={locked || busy}
-          onSave={(v) => saveField({ payment: v })}
-        />
-      </td>
-      <td className="whitespace-nowrap px-2 py-2 align-middle text-brown-700">
-        {appointment.age !== "" ? `${appointment.age} ${appointment.age_unit === "years" ? "yrs" : "mo"}` : "—"}
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <EditableText
-          value={appointment.patient_address}
-          disabled={locked || busy}
-          widthClass="w-20"
-          onSave={(v) => saveField({ patient_address: v })}
-        />
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <select
-          defaultValue={appointment.payment_type}
-          disabled={locked || busy}
-          onChange={(e) => saveField({ payment_type: e.target.value as Appointment["payment_type"] })}
-          className="w-[4.5rem] rounded border border-beige-300 bg-transparent px-1.5 py-1 text-xs outline-none focus:border-gold-500 disabled:opacity-50"
-        >
-          <option value="">—</option>
-          <option value="Cash">Cash</option>
-          <option value="Online">Online</option>
-        </select>
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <EditableText
-          value={appointment.reference}
-          disabled={locked || busy}
-          widthClass="w-16"
-          onSave={(v) => saveField({ reference: v })}
-        />
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <EditableText
-          value={appointment.diagnosis}
-          disabled={locked || busy}
-          widthClass="w-20"
-          onSave={(v) => saveField({ diagnosis: v })}
-        />
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <EditableNumber
-          value={appointment.follow_up}
-          disabled={locked || busy}
-          suffix="d"
-          onSave={(v) => saveField({ follow_up: v })}
-        />
-      </td>
-      <td className="px-2 py-2 align-middle">
-        <EditableNumber
-          value={appointment.call_back}
-          disabled={locked || busy}
-          suffix="d"
-          onSave={(v) => saveField({ call_back: v })}
-        />
-        {appointment.call_back_due_date && (
-          <div className="whitespace-nowrap text-[10px] text-brown-400">due {appointment.call_back_due_date}</div>
-        )}
-      </td>
-      <td className="whitespace-nowrap px-2 py-2 align-middle">
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${
-            appointment.entry_source === "walkin" ? "bg-beige-200 text-brown-700" : "bg-gold-100 text-gold-600"
-          }`}
-        >
+      </span>
+      <span className="w-20 flex-none">
+        <span className="inline-block rounded-md bg-beige-200 px-2 py-0.5 text-xs font-medium text-brown-700">
           {appointment.entry_source === "walkin" ? "Walk-in" : "Online"}
         </span>
-      </td>
-      <td className="whitespace-nowrap px-2 py-2 align-middle">
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/dashboard/appointments/new?editId=${appointment.id}`}
-            className="text-brown-400 hover:text-gold-600"
-            title="Edit"
-          >
-            <Pencil size={16} />
-          </Link>
-          {role === "doctor" && (
-            <button onClick={handleDelete} className="text-brown-400 hover:text-red-600" title="Delete">
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function EditableText({
-  value,
-  disabled,
-  widthClass = "w-28",
-  onSave,
-}: {
-  value: string;
-  disabled?: boolean;
-  widthClass?: string;
-  onSave: (v: string) => void;
-}) {
-  const [local, setLocal] = useState(value);
-  return (
-    <input
-      value={local}
-      disabled={disabled}
-      onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => local !== value && onSave(local)}
-      title={local}
-      className={`${widthClass} rounded border border-transparent bg-transparent px-1.5 py-1 text-xs outline-none hover:border-beige-300 focus:border-gold-500 disabled:opacity-50`}
-    />
-  );
-}
-
-function EditableNumber({
-  value,
-  disabled,
-  suffix,
-  onSave,
-}: {
-  value: number | "";
-  disabled?: boolean;
-  suffix?: string;
-  onSave: (v: number | "") => void;
-}) {
-  const [local, setLocal] = useState(value === "" ? "" : String(value));
-  return (
-    <div className="flex items-center gap-1">
-      <input
-        type="number"
-        value={local}
-        disabled={disabled}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => {
-          const next = local === "" ? "" : Number(local);
-          if (next !== value) onSave(next);
-        }}
-        className="w-16 rounded border border-transparent bg-transparent px-1.5 py-1 text-xs outline-none hover:border-beige-300 focus:border-gold-500 disabled:opacity-50"
-      />
-      {suffix && local !== "" && <span className="text-[10px] text-brown-400">{suffix}</span>}
-    </div>
+      </span>
+    </button>
   );
 }

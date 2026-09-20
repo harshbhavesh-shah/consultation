@@ -54,6 +54,16 @@ export function shiftForTime(appointmentTime: string): "morning" | "afternoon" {
   return hour < SHIFT_BOUNDARY_HOUR ? "morning" : "afternoon";
 }
 
+// Appointments have no arrival/check-in timestamp, only their booked slot
+// time — this treats "past the slot time and still Booked" as waiting,
+// measured from the slot itself rather than a real arrival event.
+export function minutesPastSlot(hhmm: string, dateStr: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  const slot = new Date(`${dateStr}T00:00:00`);
+  slot.setHours(h, m, 0, 0);
+  return Math.round((Date.now() - slot.getTime()) / 60000);
+}
+
 export function formatTo12Hour(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
   const period = h >= 12 ? "PM" : "AM";
