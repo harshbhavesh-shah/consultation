@@ -4,6 +4,7 @@ import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import { signInAction } from "@/lib/auth/actions";
+import DoodlePattern from "@/components/DoodlePattern";
 
 export default function LoginPage() {
   return (
@@ -48,6 +49,7 @@ function LoginForm() {
       <div className="pointer-events-none absolute -right-24 -top-16 h-72 w-72 rounded-full bg-orange-100 blur-3xl animate-glow-in" />
       <div className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-amber-100 blur-3xl animate-glow-in" />
       <div className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-beige-200 blur-3xl animate-glow-in" />
+      <DoodlePattern id="login-doodles" opacity={0.35} />
 
       <div className="relative w-full max-w-sm rounded-2xl bg-surface p-10 shadow-card ring-1 ring-beige-300">
         <div className="flex flex-col items-center gap-3">
