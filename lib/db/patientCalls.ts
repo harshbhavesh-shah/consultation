@@ -50,7 +50,19 @@ export async function createPatientCall(input: {
   });
   if (recent) return { id: recent.id, deduped: true };
 
-  const row = await prisma.patientCall.create({ data: input });
+  // A new press replaces any earlier unacknowledged call for the same
+  // appointment instead of stacking another card on reception's screen: the
+  // old rows are marked acknowledged (with no acknowledger — nobody at
+  // reception acted on them, they were superseded), which removes their
+  // cards live everywhere, while the new row adds a fresh card and chime.
+  const row = await prisma.$transaction(async (tx) => {
+    const created = await tx.patientCall.create({ data: input });
+    await tx.patientCall.updateMany({
+      where: { clinicId: input.clinicId, appointmentId: input.appointmentId, acknowledgedAt: null, id: { not: created.id } },
+      data: { acknowledgedAt: new Date() },
+    });
+    return created;
+  });
   return { id: row.id, deduped: false };
 }
 
