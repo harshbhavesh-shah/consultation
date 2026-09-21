@@ -2,42 +2,29 @@ import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { listConnectedClinicIds } from "@/lib/db/whatsappConnections";
 import { getClinic } from "@/lib/db/clinics";
-import { getAppointmentsInRange, updateAppointment } from "@/lib/db/appointments";
-import { computeFollowUpDueDate } from "@/lib/followups";
-import { formatTo12Hour } from "@/lib/slots";
+import { detectNoShows } from "@/lib/db/retention";
 import { purgeOldPatientCalls } from "@/lib/db/patientCalls";
-import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
+import { clinicNow, isInSendWindow } from "@/lib/clinicTime";
+import { processFollowUpReminders, processFeedbackRequests, processNoShowFollowUps } from "./logic";
 
-// Runs once a day (see vercel.json) across every WhatsApp-connected clinic.
-// Vercel Cron automatically sends `Authorization: Bearer ${CRON_SECRET}`
-// when that env var is set on the project.
-// On another host, point an external scheduler at this URL with the same
-// header once a day instead.
+// Polled every 15 minutes by an external scheduler (cron-job.org or
+// similar, sending `Authorization: Bearer <CRON_SECRET>`) — Vercel's Hobby
+// plan can only cron once a day, and no-show follow-ups are timed in hours.
+// The Vercel daily cron in vercel.json stays as a safety net; every job below
+// is idempotent, so extra runs are harmless. Setup: docs/retention-setup.md.
 //
-// Three independent automated sends, each guarded by its own boolean flag
-// on the appointment so it fires at most once:
-//  - Follow-up reminder (day before + on the day): derived from the
-//    `follow_up` (days) field — see computeFollowUpDueDate. This is what
-//    follow_up_sent/follow_up_day_before_sent already existed for (see the
-//    comment in app/dashboard/appointments/actions.ts).
-//  - No-show follow-up: still "Booked" the day after its appointment date
-//    (never marked Visited or Cancelled).
-//  - Feedback survey: marked "Visited" the day before.
-// (Booking confirmations and receipts fire immediately elsewhere — see
-// app/book/[clinicId]/actions.ts and app/dashboard/appointments/actions.ts
-// — not here.)
-
-function todayStr(offsetDays = 0): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
-}
-
-// Bounds the appointments scanned per clinic to a rolling window instead of
-// the clinic's whole history — wide enough to cover any realistic follow_up
-// offset (entered in days on the appointment) while staying a bounded,
-// indexed read (see getAppointmentsInRange).
-const LOOKBACK_DAYS = 120;
+// Each run:
+//   1. Flags past-dated, still-"Booked" appointments as No-show (all
+//      clinics, any hour — see detectNoShows for the rule and its guards).
+//   2. Housekeeping: drops stale call-in popups.
+//   3. ONLY inside the clinic-local 9am-8pm window, for every WhatsApp-
+//      connected clinic: follow-up reminders (day before / on the day),
+//      feedback requests (day after a visit), and the clinic's configured
+//      no-show follow-ups. Patients never get messages at 5 AM; anything due
+//      outside the window simply goes out on the first poll inside it.
+//
+// One clinic's failure never blocks the rest, and a failed send is retried
+// on the next poll.
 
 function isAuthorizedCron(authHeader: string | null): boolean {
   const secret = process.env.CRON_SECRET;
@@ -52,85 +39,35 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = todayStr(0);
-  const tomorrow = todayStr(1);
-  const yesterday = todayStr(-1);
-  const windowStart = todayStr(-LOOKBACK_DAYS);
+  const now = new Date();
+  const { date: today } = clinicNow(now);
 
-  // Housekeeping unrelated to WhatsApp: call-in popups only matter for minutes.
+  const noShowsDetected = await detectNoShows(today).catch((err) => {
+    console.error("No-show detection failed:", err instanceof Error ? err.message : err);
+    return 0;
+  });
   await purgeOldPatientCalls().catch((err) => console.error("Failed to purge old patient calls:", err));
 
+  if (!isInSendWindow(now)) {
+    return NextResponse.json({ noShowsDetected, messages: "skipped — outside the 9am-8pm send window" });
+  }
+
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin).replace(/\/$/, "");
   const clinicIds = await listConnectedClinicIds();
   let reminders = 0;
-  let noShows = 0;
   let feedback = 0;
+  let noShowFollowUps = 0;
 
   for (const clinicId of clinicIds) {
-    const [clinic, appointments] = await Promise.all([
-      getClinic(clinicId),
-      getAppointmentsInRange(clinicId, windowStart, tomorrow),
-    ]);
-    const clinicName = clinic?.name ?? "the clinic";
-
-    for (const appointment of appointments) {
-      // Follow-up reminder — day before and on the day, each sent once.
-      if (appointment.follow_up !== "") {
-        const dueDate = computeFollowUpDueDate(appointment.appointment_date, appointment.follow_up);
-        const isDueTomorrow = dueDate === tomorrow && !appointment.follow_up_day_before_sent;
-        const isDueToday = dueDate === today && !appointment.follow_up_sent;
-
-        if (isDueTomorrow || isDueToday) {
-          const result = await sendAutomatedTemplate({
-            clinicId,
-            category: "appointment_reminder",
-            toPhone: appointment.patient_phone,
-            params: [appointment.patient_name, clinicName, dueDate!, formatTo12Hour(appointment.appointment_time)],
-            patientId: appointment.patientId,
-            patientName: appointment.patient_name,
-          });
-          if (result.sent) {
-            await updateAppointment(clinicId, appointment.id, {
-              ...(isDueTomorrow ? { follow_up_day_before_sent: true } : {}),
-              ...(isDueToday ? { follow_up_sent: true } : {}),
-            });
-            reminders++;
-          }
-        }
-      }
-
-      // No-show follow-up — still Booked the day after the appointment.
-      if (appointment.appointment_date === yesterday && appointment.status === "Booked" && !appointment.no_show_sent) {
-        const result = await sendAutomatedTemplate({
-          clinicId,
-          category: "no_show_followup",
-          toPhone: appointment.patient_phone,
-          params: [appointment.patient_name, ""],
-          patientId: appointment.patientId,
-          patientName: appointment.patient_name,
-        });
-        if (result.sent) {
-          await updateAppointment(clinicId, appointment.id, { no_show_sent: true });
-          noShows++;
-        }
-      }
-
-      // Feedback survey — Visited the day before.
-      if (appointment.appointment_date === yesterday && appointment.status === "Visited" && !appointment.feedback_sent) {
-        const result = await sendAutomatedTemplate({
-          clinicId,
-          category: "visit_feedback",
-          toPhone: appointment.patient_phone,
-          params: [appointment.patient_name, ""],
-          patientId: appointment.patientId,
-          patientName: appointment.patient_name,
-        });
-        if (result.sent) {
-          await updateAppointment(clinicId, appointment.id, { feedback_sent: true });
-          feedback++;
-        }
-      }
+    try {
+      const clinic = await getClinic(clinicId);
+      reminders += await processFollowUpReminders(clinicId, clinic?.name ?? "the clinic", now);
+      feedback += await processFeedbackRequests(clinicId, now);
+      noShowFollowUps += await processNoShowFollowUps(clinicId, baseUrl, now);
+    } catch (err) {
+      console.error(`Scheduled messages failed for clinic ${clinicId}:`, err instanceof Error ? err.message : err);
     }
   }
 
-  return NextResponse.json({ clinics: clinicIds.length, reminders, noShows, feedback });
+  return NextResponse.json({ clinics: clinicIds.length, noShowsDetected, reminders, feedback, noShowFollowUps });
 }

@@ -6,9 +6,12 @@ export function computeCallBackDueDate(
   callBackDays: number | ""
 ): string | null {
   if (callBackDays === "" || callBackDays === null || callBackDays === undefined) return null;
-  const date = new Date(`${appointmentDate}T00:00:00`);
-  date.setDate(date.getDate() + Number(callBackDays));
-  return date.toISOString().slice(0, 10);
+  // Pure calendar arithmetic in UTC. The old version built a LOCAL midnight
+  // and then read it back with toISOString() (UTC), which lands on the
+  // previous day whenever the server's timezone is ahead of UTC (e.g. IST in
+  // local dev) — invisible on Vercel (UTC), wrong everywhere else.
+  const [y, m, d] = appointmentDate.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + Number(callBackDays))).toISOString().slice(0, 10);
 }
 
 /** Same derivation as computeCallBackDueDate, for the `follow_up` (days)

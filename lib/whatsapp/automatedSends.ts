@@ -1,7 +1,7 @@
 import "server-only";
 import { activeProvider } from "@/lib/whatsapp/activeProvider";
 import { getWhatsAppConnection, recordWhatsAppError } from "@/lib/db/whatsappConnections";
-import { getTemplateByCategory } from "@/lib/db/messageTemplates";
+import { getTemplate, getTemplateByCategory } from "@/lib/db/messageTemplates";
 import { recordOutboundMessage, isPhoneOptedOut } from "@/lib/db/whatsappConversations";
 import { toWhatsAppPhone } from "@/lib/phone";
 import type { MessageTemplate, MessageTemplateCategory } from "@/types";
@@ -9,6 +9,9 @@ import type { MessageTemplate, MessageTemplateCategory } from "@/types";
 export interface AutomatedSendInput {
   clinicId: string;
   category: MessageTemplateCategory;
+  /** Send this specific template instead of the clinic's newest one of the
+   * category (used by no-show follow-ups, which each pick their own). */
+  templateId?: string;
   toPhone: string;
   params: string[];
   patientId?: string | null;
@@ -36,7 +39,9 @@ export async function sendAutomatedTemplate(input: AutomatedSendInput): Promise<
 
   if (await isPhoneOptedOut(input.clinicId, input.toPhone)) return { sent: false, reason: "opted-out" };
 
-  const template = await getTemplateByCategory(input.clinicId, input.category);
+  const template = input.templateId
+    ? await getTemplate(input.clinicId, input.templateId)
+    : await getTemplateByCategory(input.clinicId, input.category);
   if (!template) return { sent: false, reason: `no-template:${input.category}` };
 
   const toPhone = toWhatsAppPhone(input.toPhone);

@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/send-scheduled-messages",
-      "schedule": "0 3 * * *"
+      "schedule": "30 4 * * *"
     }
   ]
 }

@@ -221,3 +221,13 @@ export async function getAppointmentsInRange(
 export function isLockedForReception(status: AppointmentStatus): boolean {
   return status === "Visited";
 }
+
+/** Uncached (the scheduler must see appointments it flipped moments ago):
+ * a clinic's No-show appointments from `fromDate` on, newest first. */
+export async function getNoShowAppointments(clinicId: string, fromDate: string): Promise<Appointment[]> {
+  const rows = await prisma.appointment.findMany({
+    where: { clinicId, status: "NoShow", appointmentDate: { gte: fromDate } },
+    orderBy: [{ appointmentDate: "desc" }, { appointmentTime: "desc" }],
+  });
+  return rows.map(toAppointment);
+}

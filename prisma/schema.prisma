@@ -521,6 +521,10 @@ model NoShowFollowUp {
   templateId String             @map("template_id") @db.Uuid
   offerText  String?            @map("offer_text")
   enabled    Boolean            @default(false)
+  // Set whenever the follow-up is switched on. Only appointments scheduled
+  // AFTER this are messaged, so turning a follow-up on never fires a burst
+  // at every recent no-show.
+  enabledSince DateTime?        @map("enabled_since")
   delayHours Int                @default(4) @map("delay_hours")
   createdAt  DateTime           @default(now()) @map("created_at")
 

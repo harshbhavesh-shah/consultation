@@ -17,6 +17,7 @@ CREATE TABLE "no_show_follow_ups" (
     "template_id" UUID NOT NULL,
     "offer_text" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT false,
+    "enabled_since" TIMESTAMP(3),
     "delay_hours" INTEGER NOT NULL DEFAULT 4,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "no_show_follow_ups_pkey" PRIMARY KEY ("id")
