@@ -27,7 +27,7 @@ export default function AccessForm() {
       <div className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-orange-100 opacity-80 blur-3xl" />
       <div className="pointer-events-none absolute -left-16 bottom-0 h-[420px] w-[420px] rounded-full bg-amber-100 opacity-70 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-[460px] w-[460px] rounded-full bg-beige-200 opacity-90 blur-3xl" />
-      <DoodlePattern id="access-doodles" opacity={0.4} />
+      <DoodlePattern id="access-doodles" opacity={0.5} />
 
       <div className="relative z-[2] w-full max-w-[480px] rounded-2xl border border-beige-300 bg-surface p-8 shadow-card sm:p-10">
         <div className="flex flex-col gap-2">

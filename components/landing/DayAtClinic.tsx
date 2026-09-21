@@ -19,10 +19,45 @@ function SceneIntro({ time, period, accent, title, children }: { time: string; p
   );
 }
 
-function SceneVisual({ bg, children }: { bg: string; children: React.ReactNode }) {
+// Fixed heights (not min-height) to match the design's exact card
+// compositions — taller on mobile for scenes whose floating annotation
+// reflows in-line below the card there instead of overlapping it.
+function SceneVisual({ bg, height, children }: { bg: string; height: string; children: React.ReactNode }) {
   return (
-    <div className={`relative flex h-[420px] items-center justify-center overflow-hidden rounded-[28px] sm:h-[480px] ${bg}`}>
+    <div className={`relative flex items-center justify-center overflow-hidden rounded-[28px] ${height} ${bg}`}>
       {children}
+    </div>
+  );
+}
+
+function LockedTooltip({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex items-start gap-2.5 rounded-xl border border-beige-300 bg-surface p-[14px] text-sm leading-snug text-brown-600 shadow-card ${className}`}>
+      <ShieldCheck size={18} className="mt-px flex-none text-brown-600" />
+      <span>
+        <strong className="text-brown-900">Locked once done.</strong> Reception can view it. Only Dr. Shah can edit
+        it.
+      </span>
+    </div>
+  );
+}
+
+function CashReconciliationTooltip({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex flex-col gap-2 rounded-xl border border-beige-300 bg-surface p-4 text-sm tabular-nums text-brown-600 shadow-card ${className}`}>
+      <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Cash reconciliation</span>
+      <div className="flex justify-between">
+        <span>Cash collected</span>
+        <strong className="text-brown-900">₹38,400</strong>
+      </div>
+      <div className="flex justify-between">
+        <span>Bank deposit</span>
+        <strong className="text-brown-900">₹30,000</strong>
+      </div>
+      <div className="flex items-baseline justify-between border-t border-beige-200 pt-2">
+        <span className="font-medium text-brown-900">Cash on hand</span>
+        <span className="font-display text-2xl text-brown-900">₹8,400</span>
+      </div>
     </div>
   );
 }
@@ -46,7 +81,7 @@ export default function DayAtClinic() {
           Bookings and walk-ins go into one list. Take the patient&apos;s details and the payment, amount and mode,
           at the desk. Patients get a token when they arrive.
         </SceneIntro>
-        <SceneVisual bg="bg-green-100">
+        <SceneVisual bg="bg-green-100" height="h-[520px] sm:h-[480px]">
           <div className="w-[380px] max-w-[88%] rounded-xl border border-beige-300 bg-surface p-[26px] shadow-card">
             <div className="flex flex-col gap-4">
               <span className="font-display text-2xl text-brown-900">New appointment</span>
@@ -104,7 +139,7 @@ export default function DayAtClinic() {
           </SceneIntro>
         </div>
         <div className="lg:order-1">
-          <SceneVisual bg="bg-amber-100">
+          <SceneVisual bg="bg-amber-100" height="h-[440px] sm:h-[480px]">
             <div className="w-[440px] max-w-[90%] rounded-xl border border-beige-300 bg-surface p-[22px] shadow-card">
               <div className="flex flex-col gap-4">
                 <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Today&apos;s progress</span>
@@ -123,9 +158,12 @@ export default function DayAtClinic() {
           The doctor records the diagnosis, sets the follow-up and the call-back, and marks the visit done. From
           then on the record is locked. Reception can still read it, and only the doctor can change it.
         </SceneIntro>
-        <SceneVisual bg="bg-red-100">
-          <div className="relative w-[380px] max-w-[80%]">
-            <div className="rounded-xl border border-beige-300 bg-surface p-[26px] shadow-card">
+        <SceneVisual bg="bg-red-100" height="h-[560px] sm:h-[480px]">
+          {/* Below sm, the floating tooltip reflows in-line below the
+              card instead of overlapping it (it has no room to float
+              there); at sm+ it's absolutely positioned as designed. */}
+          <div className="flex w-[380px] max-w-[88%] flex-col items-center gap-3 sm:relative sm:block sm:w-[380px] sm:max-w-[80%]">
+            <div className="w-full rounded-xl border border-beige-300 bg-surface p-[26px] shadow-card">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-display text-[28px] text-brown-900">Vikram Patil</span>
@@ -153,13 +191,8 @@ export default function DayAtClinic() {
                 </div>
               </div>
             </div>
-            <div className="absolute -bottom-9 -right-4 hidden w-[280px] items-start gap-2.5 rounded-xl border border-beige-300 bg-surface p-[14px] text-sm leading-snug text-brown-600 shadow-card sm:flex">
-              <ShieldCheck size={18} className="mt-px flex-none text-brown-600" />
-              <span>
-                <strong className="text-brown-900">Locked once done.</strong> Reception can view it. Only Dr. Shah
-                can edit it.
-              </span>
-            </div>
+            <LockedTooltip className="w-full sm:hidden" />
+            <LockedTooltip className="absolute -bottom-9 -right-4 hidden w-[280px] sm:flex" />
           </div>
         </SceneVisual>
       </article>
@@ -173,9 +206,9 @@ export default function DayAtClinic() {
           </SceneIntro>
         </div>
         <div className="lg:order-1">
-          <SceneVisual bg="bg-gold-100">
-            <div className="relative w-[400px] max-w-[85%]">
-              <div className="flex flex-col gap-3.5 rounded-xl border border-beige-300 bg-surface p-6 shadow-card">
+          <SceneVisual bg="bg-gold-100" height="h-[520px] sm:h-[480px]">
+            <div className="flex w-[400px] max-w-[88%] flex-col items-center gap-3 sm:relative sm:block sm:w-[400px] sm:max-w-[85%]">
+              <div className="flex w-full flex-col gap-3.5 rounded-xl border border-beige-300 bg-surface p-6 shadow-card">
                 <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Total revenue</span>
                 <span className="font-display text-5xl tabular-nums text-brown-900">₹62,700</span>
                 <div className="flex h-3 gap-[3px]">
@@ -191,21 +224,8 @@ export default function DayAtClinic() {
                   </span>
                 </div>
               </div>
-              <div className="absolute -bottom-16 -right-6 hidden w-[250px] flex-col gap-2 rounded-xl border border-beige-300 bg-surface p-4 text-sm tabular-nums text-brown-600 shadow-card sm:flex">
-                <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Cash reconciliation</span>
-                <div className="flex justify-between">
-                  <span>Cash collected</span>
-                  <strong className="text-brown-900">₹38,400</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>Bank deposit</span>
-                  <strong className="text-brown-900">₹30,000</strong>
-                </div>
-                <div className="flex items-baseline justify-between border-t border-beige-200 pt-2">
-                  <span className="font-medium text-brown-900">Cash on hand</span>
-                  <span className="font-display text-2xl text-brown-900">₹8,400</span>
-                </div>
-              </div>
+              <CashReconciliationTooltip className="w-full sm:hidden" />
+              <CashReconciliationTooltip className="absolute -bottom-16 -right-6 hidden w-[250px] sm:flex" />
             </div>
           </SceneVisual>
         </div>

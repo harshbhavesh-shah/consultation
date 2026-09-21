@@ -2,9 +2,9 @@ import { Check } from "lucide-react";
 import StatusChip from "@/components/StatusChip";
 
 const STEPS = [
-  { label: "Connection", status: "Connected" },
-  { label: "Webhook", status: "Verified by Meta" },
-  { label: "Message templates", status: "2 templates" },
+  { label: "Connection", status: "Connected", statusMobile: "Connected" },
+  { label: "Webhook", status: "Verified by Meta", statusMobile: "Verified" },
+  { label: "Message templates", status: "2 templates", statusMobile: "2 added" },
 ];
 
 const TEMPLATES = [
@@ -39,7 +39,14 @@ export default function WhatsAppBand() {
                   <Check size={16} />
                 </span>
                 <span className="flex-1 text-base font-semibold text-brown-900">{step.label}</span>
-                <StatusChip label={step.status} tone="positive" />
+                {/* Shorter labels on mobile — "Verified by Meta" and
+                    "2 templates" wrap awkwardly at narrow widths. */}
+                <span className="sm:hidden">
+                  <StatusChip label={step.statusMobile} tone="positive" />
+                </span>
+                <span className="hidden sm:inline-flex">
+                  <StatusChip label={step.status} tone="positive" />
+                </span>
               </div>
             ))}
             <div className="mt-1 flex flex-col">
