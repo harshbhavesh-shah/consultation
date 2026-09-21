@@ -37,25 +37,24 @@ export default function MessageTemplatesSection({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-brown-400">Names and language codes must exactly match what&apos;s approved in Meta.</p>
+    <div className="space-y-5 rounded-xl bg-surface p-6 shadow-soft ring-1 ring-beige-300">
+      <div className="flex min-h-[28px] flex-wrap items-center justify-between gap-3">
+        <h2 className="font-display text-xl text-brown-900">Message templates</h2>
         <button
           onClick={() => setModalTemplate(null)}
-          className="flex items-center gap-1.5 rounded-md bg-gold-500 px-3 py-1.5 text-xs font-semibold text-beige-200 hover:bg-gold-600"
+          className="flex items-center gap-1.5 rounded-md border border-beige-300 px-3.5 py-2 text-sm font-medium text-brown-700 hover:bg-canvas"
         >
-          <Plus size={14} /> New Template
+          <Plus size={15} /> New Template
         </button>
       </div>
+      <p className="text-sm text-brown-600">Names and language codes must exactly match what&apos;s approved in Meta.</p>
 
       {templates.length === 0 ? (
-        <div className="rounded-xl bg-surface p-6 text-center text-sm text-brown-400 shadow-soft ring-1 ring-beige-300">
-          No templates yet.
-        </div>
+        <div className="rounded-lg bg-canvas p-6 text-center text-sm text-brown-400">No templates yet.</div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-surface shadow-soft ring-1 ring-beige-300">
+        <div className="overflow-hidden rounded-lg border border-beige-200">
           {templates.map((t) => (
-            <div key={t.id} className="flex items-center justify-between border-b border-beige-300 px-4 py-3 text-sm last:border-0">
+            <div key={t.id} className="flex items-center justify-between border-b border-beige-200 px-4 py-3 text-sm last:border-0">
               <div>
                 <div className="font-medium text-brown-900">{t.name}</div>
                 <div className="text-xs text-brown-400">
@@ -85,7 +84,7 @@ export default function MessageTemplatesSection({
       )}
 
       {hasConnection && templates.length > 0 && (
-        <div className="rounded-xl bg-surface p-5 shadow-soft ring-1 ring-beige-300">
+        <div className="rounded-lg bg-canvas p-5">
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-brown-900">
             <Send size={14} /> Send Test Message
           </h3>
@@ -96,7 +95,7 @@ export default function MessageTemplatesSection({
                 required
                 value={testTemplateId}
                 onChange={(e) => setTestTemplateId(e.target.value)}
-                className="rounded-md border border-beige-300 bg-canvas px-3 py-2 text-sm text-brown-900 outline-none"
+                className="rounded-md border border-beige-300 bg-surface px-3 py-2 text-sm text-brown-900 outline-none"
               >
                 <option value="" disabled>
                   Select…
@@ -115,7 +114,7 @@ export default function MessageTemplatesSection({
                 value={testPhone}
                 onChange={(e) => setTestPhone(e.target.value)}
                 placeholder="9876543210"
-                className="rounded-md border border-beige-300 bg-canvas px-3 py-2 text-sm text-brown-900 outline-none"
+                className="rounded-md border border-beige-300 bg-surface px-3 py-2 text-sm text-brown-900 outline-none"
               />
             </div>
             <button
