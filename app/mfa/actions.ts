@@ -38,7 +38,9 @@ export async function startMfaEnrollmentAction(): Promise<EnrollmentResult> {
 
   const { data, error } = await supabase.auth.mfa.enroll({
     factorType: "totp",
-    friendlyName: `Loupe ${Date.now()}`,
+    // Must be unique per user; the timestamp keeps a retry after a removed
+    // device from colliding, while still reading as a sensible label.
+    friendlyName: `Authenticator ${new Date().toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })}`,
   });
   if (error || !data) {
     console.error("MFA enroll failed:", error);
