@@ -156,6 +156,7 @@ model Clinic {
   messageTemplates   MessageTemplate[]
   conversations      WhatsAppConversation[]
   auditLogs          AuditLog[]
+  patientCalls       PatientCall[]
 
   @@map("clinics")
 }
@@ -260,6 +261,7 @@ model Appointment {
 
   clinic  Clinic   @relation(fields: [clinicId], references: [id])
   patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  calls   PatientCall[]
 
   @@index([clinicId, appointmentDate, appointmentTime])
   @@index([clinicId, appointmentDate])
@@ -453,4 +455,32 @@ model RateLimitEvent {
   @@index([bucket, key, createdAt])
   @@index([createdAt])
   @@map("rate_limit_events")
+}
+
+// "Call in": the doctor calls the next patient and reception gets a live
+// popup. One row per press. Reception sessions receive INSERT/UPDATE events
+// for their own clinic over Supabase Realtime (RLS select policy on
+// clinic_id, same pattern as the WhatsApp Inbox tables), so this table is in
+// the supabase_realtime publication. patientName/tokenNumber are snapshots
+// so the popup needs no join. Rows go when the appointment does (cascade —
+// this also covers patient erasure) and are purged after a couple of days by
+// the daily cron.
+model PatientCall {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clinicId       String    @map("clinic_id") @db.Uuid
+  appointmentId  String    @map("appointment_id") @db.Uuid
+  patientName    String    @map("patient_name")
+  tokenNumber    Int       @map("token_number")
+  calledBy       String    @map("called_by") @db.Uuid
+  calledByName   String    @map("called_by_name") // e.g. "Dr. Shah"
+  createdAt      DateTime  @default(now()) @map("created_at")
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  acknowledgedBy String?   @map("acknowledged_by") @db.Uuid
+
+  clinic      Clinic      @relation(fields: [clinicId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, createdAt(sort: Desc)])
+  @@index([appointmentId])
+  @@map("patient_calls")
 }

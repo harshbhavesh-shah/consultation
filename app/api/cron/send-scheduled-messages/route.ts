@@ -5,6 +5,7 @@ import { getClinic } from "@/lib/db/clinics";
 import { getAppointmentsInRange, updateAppointment } from "@/lib/db/appointments";
 import { computeFollowUpDueDate } from "@/lib/followups";
 import { formatTo12Hour } from "@/lib/slots";
+import { purgeOldPatientCalls } from "@/lib/db/patientCalls";
 import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 
 // Runs once a day (see vercel.json) across every WhatsApp-connected clinic.
@@ -55,6 +56,9 @@ export async function GET(request: Request) {
   const tomorrow = todayStr(1);
   const yesterday = todayStr(-1);
   const windowStart = todayStr(-LOOKBACK_DAYS);
+
+  // Housekeeping unrelated to WhatsApp: call-in popups only matter for minutes.
+  await purgeOldPatientCalls().catch((err) => console.error("Failed to purge old patient calls:", err));
 
   const clinicIds = await listConnectedClinicIds();
   let reminders = 0;

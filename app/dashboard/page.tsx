@@ -4,6 +4,9 @@ import { getAppointmentsForDate } from "@/lib/db/appointments";
 import { getAttendanceForDate } from "@/lib/db/attendance";
 import { listClinicStaff } from "@/lib/db/staff";
 import { formatTo12Hour, minutesPastSlot } from "@/lib/slots";
+import { waitingInOrder } from "@/lib/nextInLine";
+import { doctorLabel } from "@/lib/staffName";
+import CallInButton from "@/components/calls/CallInButton";
 import CallbackReminders from "@/components/CallbackReminders";
 import { STATUS_STYLES } from "@/components/appointments/statusStyles";
 import type { Appointment } from "@/types";
@@ -46,7 +49,7 @@ export default async function DashboardPage() {
   const waiting = appointments.filter((a) => a.status === "Booked");
   const cancelled = appointments.filter((a) => a.status === "Cancelled");
 
-  const nextInLine = [...waiting].sort((a, b) => a.appointment_time.localeCompare(b.appointment_time));
+  const nextInLine = waitingInOrder(appointments);
   const [current, ...upcoming] = nextInLine;
 
   const receptionStaff = staff.filter((s) => s.role === "reception");
@@ -58,8 +61,7 @@ export default async function DashboardPage() {
     month: "long",
   });
 
-  const surname = doctor?.name.trim().split(/\s+/).pop();
-  const nameLabel = surname ? `Dr. ${surname}` : "";
+  const nameLabel = doctorLabel(doctor?.name);
   const subtitle =
     current
       ? `${waiting.length} patient${waiting.length === 1 ? " is" : "s are"} waiting. Next is ${current.patient_name}.`
@@ -156,12 +158,24 @@ export default async function DashboardPage() {
                     </span>
                   </div>
                 </div>
-                <Link
-                  href={`/dashboard/appointments?date=${today}`}
-                  className="inline-flex h-12 flex-none items-center justify-center rounded-lg bg-gold-500 px-6 text-base font-medium text-white transition-colors hover:bg-gold-600"
-                >
-                  Open in appointments
-                </Link>
+                {isDoctor ? (
+                  <div className="flex flex-none flex-col items-stretch gap-2 sm:items-end">
+                    <CallInButton appointmentId={current.id} date={today} patientName={current.patient_name} />
+                    <Link
+                      href={`/dashboard/appointments?date=${today}`}
+                      className="text-sm font-medium text-brown-900 underline decoration-1 underline-offset-4 sm:text-right"
+                    >
+                      Open in appointments
+                    </Link>
+                  </div>
+                ) : (
+                  <Link
+                    href={`/dashboard/appointments?date=${today}`}
+                    className="inline-flex h-12 flex-none items-center justify-center rounded-lg bg-gold-500 px-6 text-base font-medium text-white transition-colors hover:bg-gold-600"
+                  >
+                    Open in appointments
+                  </Link>
+                )}
               </div>
             </div>
           )}

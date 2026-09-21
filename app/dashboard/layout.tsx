@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAuthState } from "@/lib/session";
 import { getClinic } from "@/lib/db/clinics";
 import Sidebar from "@/components/Sidebar";
+import CallInAlerts from "@/components/calls/CallInAlerts";
 import { SidebarProvider } from "@/components/SidebarContext";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Sidebar clinicName={clinicName} session={session} />
           <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">{children}</main>
         </div>
+        {/* Reception only: the doctor's "Call in" pops up here, on any page. */}
+        {session.role === "reception" && <CallInAlerts clinicId={session.clinicId} />}
       </div>
     </SidebarProvider>
   );
