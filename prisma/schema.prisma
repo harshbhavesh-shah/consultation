@@ -439,3 +439,18 @@ model AuditLog {
   @@index([clinicId, targetType, targetId])
   @@map("audit_logs")
 }
+
+// Fixed-window counters for abuse protection on unauthenticated endpoints
+// (public booking, signup, login). One row per attempt; lib/rateLimit.ts
+// counts rows in the window and prunes old ones. `key` is an IP or email —
+// operational data only, never patient data.
+model RateLimitEvent {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bucket    String
+  key       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([bucket, key, createdAt])
+  @@index([createdAt])
+  @@map("rate_limit_events")
+}

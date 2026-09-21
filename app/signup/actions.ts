@@ -2,12 +2,18 @@
 
 import { prisma } from "@/lib/db/client";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { getClientIp } from "@/lib/request";
+import { verifyTurnstileToken } from "@/lib/turnstile";
+
+export const MIN_PASSWORD_LENGTH = 8;
 
 export interface CreateClinicInput {
   clinicName: string;
   name: string;
   email: string;
   password: string;
+  turnstileToken: string;
 }
 
 /**
@@ -22,6 +28,13 @@ export interface CreateClinicInput {
 export async function createClinicAction(
   input: CreateClinicInput
 ): Promise<{ error?: string }> {
+  const ip = getClientIp();
+  const { allowed } = await checkRateLimit({ bucket: "signup", key: ip, max: 5, windowMs: 60 * 60 * 1000 });
+  if (!allowed) return { error: "Too many sign-up attempts. Please try again later." };
+  if (!(await verifyTurnstileToken(input.turnstileToken, ip))) {
+    return { error: "Please complete the verification challenge and try again." };
+  }
+
   const clinicName = input.clinicName.trim();
   const name = input.name.trim();
   const email = input.email.trim();
@@ -30,8 +43,8 @@ export async function createClinicAction(
   if (!clinicName || !name || !email || !password) {
     return { error: "Please fill in all fields." };
   }
-  if (password.length < 6) {
-    return { error: "Password must be at least 6 characters." };
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
   }
 
   const clinic = await prisma.clinic.create({ data: { name: clinicName } });

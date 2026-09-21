@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { getClientIp } from "@/lib/request";
 
 /**
  * Replaces the old Firebase flow entirely: client-side signInWithEmailAndPassword
@@ -12,6 +14,17 @@ import { createClient } from "@/lib/supabase/server";
  * /api/auth/session route.
  */
 export async function signInAction(email: string, password: string): Promise<{ error?: string }> {
+  // Brute-force protection on top of Supabase's own per-IP limits: capped
+  // per email (stops a distributed guess at one account) and per IP (stops
+  // one client sweeping many accounts). Counts successful attempts too.
+  const [byEmail, byIp] = await Promise.all([
+    checkRateLimit({ bucket: "login-email", key: email.trim().toLowerCase(), max: 10, windowMs: 15 * 60 * 1000 }),
+    checkRateLimit({ bucket: "login-ip", key: getClientIp(), max: 30, windowMs: 15 * 60 * 1000 }),
+  ]);
+  if (!byEmail.allowed || !byIp.allowed) {
+    return { error: "Too many sign-in attempts. Please wait a few minutes and try again." };
+  }
+
   const supabase = createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: describeAuthError(error) };

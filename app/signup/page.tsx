@@ -3,6 +3,7 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signInAction } from "@/lib/auth/actions";
+import TurnstileWidget from "@/components/TurnstileWidget";
 import { createClinicAction } from "./actions";
 
 export default function SignupPage() {
@@ -20,6 +21,7 @@ function SignupForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +32,7 @@ function SignupForm() {
 
     let result: { error?: string };
     try {
-      result = await createClinicAction({ clinicName, name, email, password });
+      result = await createClinicAction({ clinicName, name, email, password, turnstileToken });
     } catch (err) {
       // A server action can reject outright (network failure, function
       // timeout, cold-start taking longer than the platform allows) rather
@@ -110,12 +112,14 @@ function SignupForm() {
               id="password"
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
           </Field>
+
+          <TurnstileWidget onToken={setTurnstileToken} />
 
           {error && <p className="text-sm text-red-700">{error}</p>}
 

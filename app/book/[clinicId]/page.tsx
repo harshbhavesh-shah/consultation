@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { formatTo12Hour, isBookableDate } from "@/lib/slots";
+import TurnstileWidget from "@/components/TurnstileWidget";
 import { createPublicBookingAction } from "./actions";
 
 export default function BookPage({ params }: { params: { clinicId: string } }) {
@@ -10,6 +11,7 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [consent, setConsent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [morningSlots, setMorningSlots] = useState<string[]>([]);
@@ -64,7 +66,7 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const result = await createPublicBookingAction(params.clinicId, { name, phone, date, time, consent });
+    const result = await createPublicBookingAction(params.clinicId, { name, phone, date, time, consent }, turnstileToken);
     setSubmitting(false);
     if (result.error) {
       setError(result.error);
@@ -183,6 +185,8 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
               .
             </span>
           </label>
+
+          <TurnstileWidget onToken={setTurnstileToken} />
 
           <button
             type="submit"
