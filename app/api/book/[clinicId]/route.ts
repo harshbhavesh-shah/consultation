@@ -17,19 +17,19 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request, { params }: { params: { clinicId: string } }) {
-  let body: { name?: string; phone?: string; date?: string; time?: string };
+  let body: { name?: string; phone?: string; date?: string; time?: string; consent?: boolean };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const { name, phone, date, time } = body;
+  const { name, phone, date, time, consent } = body;
   if (!name || !phone || !date || !time) {
     return NextResponse.json({ error: "Please fill in all fields." }, { status: 400, headers: CORS_HEADERS });
   }
 
-  const result = await createPublicBookingAction(params.clinicId, { name, phone, date, time });
+  const result = await createPublicBookingAction(params.clinicId, { name, phone, date, time, consent: consent === true });
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: 400, headers: CORS_HEADERS });
   }

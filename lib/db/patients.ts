@@ -1,6 +1,8 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
+import { revalidateTag } from "next/cache";
 import { prisma } from "./client";
+import { normalizePhone } from "@/lib/phone";
 import type { Patient as PrismaPatient } from "@prisma/client";
 import type { Patient, AgeUnit, Gender } from "@/types";
 
@@ -63,7 +65,8 @@ export async function getPatientByCode(clinicId: string, patientCode: string): P
 
 export async function createPatient(
   clinicId: string,
-  input: Pick<Patient, "name" | "phone" | "address" | "age" | "age_unit" | "gender">
+  input: Pick<Patient, "name" | "phone" | "address" | "age" | "age_unit" | "gender">,
+  opts: { dataConsentAt?: Date } = {}
 ): Promise<Patient> {
   const data = {
     clinicId,
@@ -73,6 +76,7 @@ export async function createPatient(
     age: input.age === "" ? null : input.age,
     ageUnit: input.age_unit,
     gender: input.gender === "" ? null : input.gender,
+    dataConsentAt: opts.dataConsentAt ?? null,
   };
 
   // Firestore never checked for a patient-code collision (just generated
@@ -130,4 +134,55 @@ export async function listAllPatients(clinicId: string, max = 50): Promise<Patie
  * them. */
 export async function getPatientCount(clinicId: string): Promise<number> {
   return prisma.patient.count({ where: { clinicId } });
+}
+
+// NMC Professional Conduct Regulations require doctors to keep a patient's
+// records for at least 3 years from the last treatment, so a DPDP erasure
+// request can't lawfully be honored inside that window.
+export const RETENTION_YEARS = 3;
+
+function recordsFor(clinicId: string, patient: { id: string; phone: string }) {
+  // Online bookings are never linked to a Patient row (patientId is null),
+  // so they're matched by phone — they're this patient's records too.
+  return {
+    clinicId,
+    OR: [{ patientId: patient.id }, { patientId: null, patientPhone: patient.phone }],
+  };
+}
+
+/** Returns null when the patient may be erased, otherwise the first date
+ * (YYYY-MM-DD) on which erasure becomes lawful. */
+export async function checkPatientRetentionFloor(clinicId: string, patientId: string): Promise<string | null> {
+  const patient = await getPatientById(clinicId, patientId);
+  if (!patient) throw new Error("Patient not found");
+
+  const last = await prisma.appointment.findFirst({
+    where: recordsFor(clinicId, patient),
+    orderBy: { appointmentDate: "desc" },
+    select: { appointmentDate: true },
+  });
+  if (!last) return null;
+
+  const eligible = new Date(`${last.appointmentDate}T00:00:00Z`);
+  eligible.setUTCFullYear(eligible.getUTCFullYear() + RETENTION_YEARS);
+  return eligible.getTime() > Date.now() ? eligible.toISOString().slice(0, 10) : null;
+}
+
+/** Permanently deletes a patient and everything held about them: linked and
+ * phone-matched appointments, and their WhatsApp conversations/messages
+ * (messages cascade from the conversation). Callers must have run
+ * checkPatientRetentionFloor first and recorded an audit event. */
+export async function erasePatient(clinicId: string, patientId: string): Promise<void> {
+  const patient = await getPatientById(clinicId, patientId);
+  if (!patient) throw new Error("Patient not found");
+
+  await prisma.$transaction([
+    prisma.appointment.deleteMany({ where: recordsFor(clinicId, patient) }),
+    prisma.whatsAppConversation.deleteMany({
+      where: { clinicId, OR: [{ patientId }, { phoneNumber: normalizePhone(patient.phone) }] },
+    }),
+    prisma.patient.deleteMany({ where: { id: patientId, clinicId } }),
+  ]);
+  revalidateTag(`appointments-${clinicId}`);
+  revalidateTag(`whatsapp-conversations-${clinicId}`);
 }

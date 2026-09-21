@@ -15,8 +15,12 @@ export interface BookingResult {
 
 export async function createPublicBookingAction(
   clinicId: string,
-  input: { name: string; phone: string; date: string; time: string }
+  input: { name: string; phone: string; date: string; time: string; consent: boolean }
 ): Promise<BookingResult> {
+  if (input.consent !== true) {
+    return { error: "Please agree to the privacy notice to continue." };
+  }
+
   const name = input.name.trim();
   const phone = input.phone.trim();
 
@@ -70,7 +74,7 @@ export async function createPublicBookingAction(
     call_back_due_date: null,
     call_back_completed_at: null,
     createdBy: "online-booking",
-  });
+  }, { dataConsentAt: new Date() });
 
   const entries = await reassignDailyTokens(clinicId, input.date);
   const ahead = countStillWaitingAhead(entries, id);

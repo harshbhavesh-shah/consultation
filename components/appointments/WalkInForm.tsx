@@ -42,6 +42,9 @@ export default function WalkInForm({
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ token: number; ahead: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [dataConsent, setDataConsent] = useState(false);
+  // Consent only needs recording once, when a brand-new patient record is created.
+  const needsConsent = !isEdit && !patientDocId;
 
   const allSlots = useMemo(() => generateDailySlots(), []);
   const morningSlots = allSlots.filter((t) => t < MORNING_WINDOW.end);
@@ -97,9 +100,14 @@ export default function WalkInForm({
       setError("Name, phone, and a time slot are required.");
       return;
     }
+    if (needsConsent && !dataConsent) {
+      setError("Confirm the patient has agreed to their details being stored.");
+      return;
+    }
     setSubmitting(true);
 
     const payload = {
+      dataConsent,
       date,
       time,
       name,
@@ -143,6 +151,7 @@ export default function WalkInForm({
     setPayment("");
     setPaymentType("");
     setReference("");
+    setDataConsent(false);
   }
 
   return (
@@ -306,6 +315,18 @@ export default function WalkInForm({
             </Field>
           </div>
         </Section>
+
+        {needsConsent && (
+          <label className="flex items-start gap-2 text-sm text-brown-600">
+            <input
+              type="checkbox"
+              checked={dataConsent}
+              onChange={(e) => setDataConsent(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>The patient (or their guardian) has agreed to their details being stored for their care.</span>
+          </label>
+        )}
 
         {error && <p className="text-sm text-red-700">{error}</p>}
 

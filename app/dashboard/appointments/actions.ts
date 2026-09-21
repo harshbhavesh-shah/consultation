@@ -150,6 +150,8 @@ export interface WalkInInput {
   payment_type: "Cash" | "Online" | "";
   reference: string;
   patientId: string | null;
+  /** Required when this creates a new patient record. */
+  dataConsent?: boolean;
 }
 
 export interface WalkInResult {
@@ -169,14 +171,19 @@ export async function createWalkInAction(input: WalkInInput): Promise<WalkInResu
     if (exact) {
       patientId = exact.id;
     } else {
-      const created = await createPatient(session.clinicId, {
-        name: input.name.trim(),
-        phone: input.phone.trim(),
-        address: input.address,
-        age: input.age,
-        age_unit: input.age_unit,
-        gender: input.gender,
-      });
+      if (!input.dataConsent) return { error: "Confirm the patient has agreed to their details being stored." };
+      const created = await createPatient(
+        session.clinicId,
+        {
+          name: input.name.trim(),
+          phone: input.phone.trim(),
+          address: input.address,
+          age: input.age,
+          age_unit: input.age_unit,
+          gender: input.gender,
+        },
+        { dataConsentAt: new Date() }
+      );
       patientId = created.id;
       await recordAuditEvent(session, { action: "patient.create", targetType: "Patient", targetId: created.id });
     }

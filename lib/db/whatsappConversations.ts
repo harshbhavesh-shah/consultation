@@ -86,6 +86,19 @@ export async function markConversationRead(clinicId: string, conversationId: str
   revalidateTag(conversationTag(clinicId));
 }
 
+const OPT_OUT_KEYWORDS = new Set(["STOP", "UNSUBSCRIBE", "CANCEL", "END", "QUIT"]);
+const OPT_IN_KEYWORDS = new Set(["START", "SUBSCRIBE", "UNSTOP"]);
+
+/** True when this number has replied STOP and hasn't since replied START.
+ * Automated sends must check this before messaging a patient. */
+export async function isPhoneOptedOut(clinicId: string, phone: string): Promise<boolean> {
+  const row = await prisma.whatsAppConversation.findUnique({
+    where: { clinicId_phoneNumber: { clinicId, phoneNumber: normalizePhone(phone) } },
+    select: { optedOut: true },
+  });
+  return row?.optedOut ?? false;
+}
+
 function preview(body: string): string {
   return body.length > MESSAGE_PREVIEW_LENGTH ? body.slice(0, MESSAGE_PREVIEW_LENGTH) + "…" : body;
 }
@@ -127,6 +140,14 @@ export async function recordInboundMessage(
       unreadCount: { increment: 1 },
     },
   });
+
+  const keyword = event.body.trim().toUpperCase();
+  if (OPT_OUT_KEYWORDS.has(keyword) || OPT_IN_KEYWORDS.has(keyword)) {
+    await prisma.whatsAppConversation.updateMany({
+      where: { id: conversation.id, clinicId },
+      data: { optedOut: OPT_OUT_KEYWORDS.has(keyword) },
+    });
+  }
 
   await prisma.whatsAppMessage.create({
     data: {

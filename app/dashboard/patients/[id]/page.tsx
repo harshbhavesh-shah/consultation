@@ -5,6 +5,7 @@ import { getPatientById } from "@/lib/db/patients";
 import { recordAuditEvent } from "@/lib/db/auditLog";
 import { getAppointmentsByPatientId } from "@/lib/db/appointments";
 import { formatTo12Hour } from "@/lib/slots";
+import ErasePatientButton from "@/components/patients/ErasePatientButton";
 import { STATUS_STYLES, statusLabel } from "@/components/appointments/statusStyles";
 import type { Appointment } from "@/types";
 
@@ -94,6 +95,11 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
             <Plus size={18} />
             Book appointment
           </Link>
+          {session.role === "doctor" && (
+            <div className="mt-6 border-t border-beige-200 pt-4">
+              <ErasePatientButton patientId={patient.id} patientName={patient.name} />
+            </div>
+          )}
         </aside>
 
         <section className="min-w-0 flex-1">

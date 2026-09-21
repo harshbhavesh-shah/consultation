@@ -2,7 +2,7 @@ import "server-only";
 import { activeProvider } from "@/lib/whatsapp/activeProvider";
 import { getWhatsAppConnection, recordWhatsAppError } from "@/lib/db/whatsappConnections";
 import { getTemplateByCategory } from "@/lib/db/messageTemplates";
-import { recordOutboundMessage } from "@/lib/db/whatsappConversations";
+import { recordOutboundMessage, isPhoneOptedOut } from "@/lib/db/whatsappConversations";
 import { toWhatsAppPhone } from "@/lib/phone";
 import type { MessageTemplate, MessageTemplateCategory } from "@/types";
 
@@ -33,6 +33,8 @@ function renderPreview(template: MessageTemplate, params: string[]): string {
 export async function sendAutomatedTemplate(input: AutomatedSendInput): Promise<AutomatedSendResult> {
   const connection = await getWhatsAppConnection(input.clinicId);
   if (!connection) return { sent: false, reason: "not-connected" };
+
+  if (await isPhoneOptedOut(input.clinicId, input.toPhone)) return { sent: false, reason: "opted-out" };
 
   const template = await getTemplateByCategory(input.clinicId, input.category);
   if (!template) return { sent: false, reason: `no-template:${input.category}` };

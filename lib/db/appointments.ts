@@ -82,7 +82,8 @@ export async function createAppointment(
   input: Omit<
     Appointment,
     "id" | "clinicId" | "createdAt" | "token_number" | "shift" | "receipt_sent" | "no_show_sent" | "feedback_sent"
-  >
+  >,
+  opts: { dataConsentAt?: Date } = {}
 ): Promise<string> {
   const row = await prisma.appointment.create({
     data: {
@@ -114,6 +115,7 @@ export async function createAppointment(
       noShowSent: false,
       feedbackSent: false,
       createdBy: input.createdBy,
+      dataConsentAt: opts.dataConsentAt ?? null,
     },
   });
   revalidateTag(appointmentsTag(clinicId));

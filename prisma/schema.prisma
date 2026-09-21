@@ -194,6 +194,11 @@ model Patient {
   gender      Gender?
   createdAt   DateTime @default(now()) @map("created_at")
 
+  // When the patient (or guardian) agreed to their data being stored and
+  // processed, per the clinic's privacy notice. NULL = not recorded
+  // (records created before consent capture existed).
+  dataConsentAt DateTime? @map("data_consent_at")
+
   clinic        Clinic                 @relation(fields: [clinicId], references: [id])
   appointments  Appointment[]
   conversations WhatsAppConversation[]
@@ -248,6 +253,10 @@ model Appointment {
 
   createdAt DateTime @default(now()) @map("created_at")
   createdBy String   @map("created_by") @db.Uuid
+
+  // Consent captured on the appointment itself — online bookings have no
+  // Patient record to hold it.
+  dataConsentAt DateTime? @map("data_consent_at")
 
   clinic  Clinic   @relation(fields: [clinicId], references: [id])
   patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
@@ -370,6 +379,9 @@ model WhatsAppConversation {
   lastMessagePreview String   @default("") @map("last_message_preview")
   lastMessageAt      DateTime @map("last_message_at")
   unreadCount        Int      @default(0) @map("unread_count")
+  // Set when the patient replies STOP; automated sends skip opted-out
+  // numbers until they reply START.
+  optedOut           Boolean  @default(false) @map("opted_out")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   clinic   Clinic            @relation(fields: [clinicId], references: [id])

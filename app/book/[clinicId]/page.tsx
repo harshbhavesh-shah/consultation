@@ -9,6 +9,7 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [consent, setConsent] = useState(false);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [morningSlots, setMorningSlots] = useState<string[]>([]);
@@ -63,7 +64,7 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const result = await createPublicBookingAction(params.clinicId, { name, phone, date, time });
+    const result = await createPublicBookingAction(params.clinicId, { name, phone, date, time, consent });
     setSubmitting(false);
     if (result.error) {
       setError(result.error);
@@ -166,9 +167,26 @@ export default function BookPage({ params }: { params: { clinicId: string } }) {
 
           {error && <p className="text-sm text-red-700">{error}</p>}
 
+          <label className="flex items-start gap-2 text-sm text-brown-600">
+            <input
+              type="checkbox"
+              required
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              I agree to the clinic storing my name and phone number to manage this booking, as described in the{" "}
+              <a href="/privacy-policy" target="_blank" className="underline">
+                privacy notice
+              </a>
+              .
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={submitting || !time}
+            disabled={submitting || !time || !consent}
             className="w-full rounded-md bg-gold-500 py-2.5 text-sm font-semibold text-beige-200 transition-colors hover:bg-gold-600 disabled:opacity-60"
           >
             {submitting ? "Booking…" : "Book Appointment"}
