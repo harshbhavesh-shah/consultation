@@ -42,10 +42,7 @@ export default function AppointmentsToolbar({
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-2">
           <h1 className="font-display text-3xl font-medium text-brown-900 md:text-4xl">Appointments</h1>
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm text-brown-600">{subtitle}</p>
-            {revenue !== null && <DayRevenueBox revenue={revenue} />}
-          </div>
+          <p className="text-sm text-brown-600">{subtitle}</p>
         </div>
         <Link
           href={newHref}
@@ -56,8 +53,10 @@ export default function AppointmentsToolbar({
         </Link>
       </header>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-xl bg-surface p-2.5 shadow-soft ring-1 ring-beige-300">
-        <div className="justify-self-start">
+      {/* Three columns on wide screens; wraps on narrower ones so the revenue box
+          (which can sit beside the Day/Week/Month switcher) never overflows. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface p-2.5 shadow-soft ring-1 ring-beige-300 xl:grid xl:grid-cols-[1fr_auto_1fr]">
+        <div className="xl:justify-self-start">
           <SegmentedControl
             value={viewMode}
             onChange={onViewModeChange}
@@ -68,7 +67,7 @@ export default function AppointmentsToolbar({
           />
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex max-w-full flex-wrap items-center gap-1">
           <button
             onClick={onPrev}
             aria-label="Previous"
@@ -104,7 +103,8 @@ export default function AppointmentsToolbar({
           </button>
         </div>
 
-        <div className="justify-self-end">
+        <div className="flex items-center gap-3 xl:justify-self-end">
+          {revenue !== null && <DayRevenueBox revenue={revenue} />}
           {viewMode === "calendar" && (
             <SegmentedControl
               value={calendarMode}
