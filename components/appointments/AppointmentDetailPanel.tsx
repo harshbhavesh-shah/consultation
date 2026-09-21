@@ -10,7 +10,8 @@ import {
   toggleVisitedAction,
   deleteAppointmentAction,
 } from "@/app/dashboard/appointments/actions";
-import { STATUS_STYLES } from "./statusStyles";
+import { markNoShowAction, markAttendedAction } from "@/app/dashboard/retention/actions";
+import { STATUS_STYLES, STATUS_LABELS } from "./statusStyles";
 import type { Appointment, UserRole } from "@/types";
 
 function ageGender(a: Appointment): string {
@@ -44,6 +45,13 @@ export default function AppointmentDetailPanel({
     if (result.error) alert(result.error);
   }
 
+  async function handleNoShow(attended: boolean) {
+    setBusy(true);
+    const result = attended ? await markAttendedAction(appointment.id) : await markNoShowAction(appointment.id);
+    setBusy(false);
+    if (result.error) alert(result.error);
+  }
+
   async function handleDelete() {
     if (!confirm(`Delete appointment for ${appointment.patient_name}?`)) return;
     setBusy(true);
@@ -73,7 +81,7 @@ export default function AppointmentDetailPanel({
               ? `Waiting ${minutesPastSlot(appointment.appointment_time, date)} min`
               : appointment.status === "Booked"
                 ? "Booked"
-                : appointment.status}
+                : STATUS_LABELS[appointment.status]}
           </span>
           {appointment.status === "Visited" && <Lock size={14} className="text-brown-400" aria-hidden="true" />}
         </div>
@@ -186,6 +194,26 @@ export default function AppointmentDetailPanel({
           </>
         ) : (
           <p className="text-xs leading-relaxed text-brown-400">This visit is complete and locked.</p>
+        )}
+        {appointment.status === "Booked" && (
+          <button
+            type="button"
+            onClick={() => handleNoShow(false)}
+            disabled={busy}
+            className="w-fit text-sm font-medium text-brown-900 underline decoration-1 underline-offset-4 disabled:opacity-50"
+          >
+            Patient didn&apos;t come — mark as no-show
+          </button>
+        )}
+        {appointment.status === "NoShow" && (
+          <button
+            type="button"
+            onClick={() => handleNoShow(true)}
+            disabled={busy}
+            className="w-fit text-sm font-medium text-brown-900 underline decoration-1 underline-offset-4 disabled:opacity-50"
+          >
+            They did attend — mark as seen
+          </button>
         )}
         {role === "doctor" && (
           <button

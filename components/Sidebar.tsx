@@ -17,6 +17,7 @@ import {
   Inbox,
   MessageCircle,
   CalendarClock,
+  HeartHandshake,
 } from "lucide-react";
 import LogoutButton from "@/components/LogoutButton";
 import { useSidebarCollapse } from "@/components/SidebarContext";
@@ -45,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Today", href: "/dashboard", icon: LayoutDashboard },
       { label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
       { label: "Patients", href: "/dashboard/patients", icon: Users },
+      { label: "Retention", href: "/dashboard/retention", icon: HeartHandshake },
       { label: "Inbox", href: "/dashboard/inbox", icon: Inbox },
     ],
   },

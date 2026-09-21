@@ -29,6 +29,7 @@ const SECTIONS: Section[] = [
       "Booking online: your name, phone number, and the date and time you choose. We use these to reserve your slot and to send you a confirmation and reminders.",
       "At the clinic: your name, phone number, address, age, and gender, and — recorded by the doctor — visit details such as diagnosis, follow-up plans, and payment amounts. These are health information. They are used to provide and document your care, to send follow-up reminders, and to keep the clinic's financial records.",
       "WhatsApp: if the clinic has connected WhatsApp, we send appointment confirmations, reminders, receipts, and feedback requests to your phone number, and store the messages you send back to the clinic.",
+      "If you miss an appointment, the clinic may send you a WhatsApp message to check in, and may ask why you couldn't come. Your answer, and anything you choose to write, is stored with that appointment and seen only by the clinic's staff.",
       "We record when staff view or change records (who, what, and when — not the content) to protect your data and to investigate problems.",
     ],
   },
