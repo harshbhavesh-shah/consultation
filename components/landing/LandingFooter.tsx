@@ -17,7 +17,9 @@ export default function LandingFooter() {
             Sign in
           </Link>
           <span className="text-sm text-beige-300/70">Contact</span>
-          <span className="text-sm text-beige-300/70">Privacy</span>
+          <Link href="/privacy-policy" className="text-sm text-beige-200 hover:text-white">
+            Privacy
+          </Link>
           <span className="text-sm text-beige-300/70">Terms</span>
         </div>
         <span className="text-xs text-beige-300">© 2026 Radiance</span>
