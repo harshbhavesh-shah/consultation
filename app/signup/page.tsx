@@ -2,7 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signInAction } from "@/lib/auth/actions";
+import { signInAction, resendVerificationAction } from "@/lib/auth/actions";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { createClinicAction } from "./actions";
 
@@ -24,13 +24,15 @@ function SignupForm() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [resendNote, setResendNote] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    let result: { error?: string };
+    let result: { error?: string; verificationSent?: boolean };
     try {
       result = await createClinicAction({ clinicName, name, email, password, turnstileToken });
     } catch (err) {
@@ -50,6 +52,14 @@ function SignupForm() {
       return;
     }
 
+    // Normal path: a confirmation email is on its way and the account can't
+    // sign in until it's clicked.
+    if (result.verificationSent) {
+      setVerificationSent(true);
+      setLoading(false);
+      return;
+    }
+
     try {
       const outcome = await signInAction(email, password);
       if (outcome.error) {
@@ -64,6 +74,36 @@ function SignupForm() {
       setError("Clinic was created, but signing you in failed — try signing in from the login page.");
       setLoading(false);
     }
+  }
+
+  async function handleResend() {
+    setResendNote(null);
+    const result = await resendVerificationAction(email);
+    setResendNote(result.error ?? "Sent again — check your inbox (and spam folder).");
+  }
+
+  if (verificationSent) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-canvas p-4">
+        <div className="w-full max-w-sm rounded-xl bg-surface p-8 text-center shadow-card ring-1 ring-beige-300">
+          <p className="text-xs font-medium uppercase tracking-wide text-brown-400">Loupe by Radiance</p>
+          <h1 className="mt-1 font-display text-2xl font-medium text-brown-900">Check your email</h1>
+          <div className="mx-auto mb-5 mt-3 h-[2px] w-10 bg-gold-500" />
+          <p className="text-sm text-brown-600">
+            We sent a confirmation link to <span className="font-medium text-brown-900">{email}</span>. Click it to
+            activate your clinic, then you&apos;ll set up two-step verification.
+          </p>
+          <button
+            type="button"
+            onClick={handleResend}
+            className="mt-5 text-sm font-medium text-gold-600 hover:underline"
+          >
+            Send the email again
+          </button>
+          {resendNote && <p className="mt-2 text-xs text-brown-400">{resendNote}</p>}
+        </div>
+      </main>
+    );
   }
 
   return (

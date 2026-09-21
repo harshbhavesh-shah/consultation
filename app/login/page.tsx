@@ -20,7 +20,11 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    searchParams.get("verify") === "failed"
+      ? "That confirmation link is invalid or has expired. Sign in below, or sign up again to get a new one."
+      : null
+  );
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {

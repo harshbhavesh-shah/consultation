@@ -2,8 +2,9 @@
 
 import { prisma } from "@/lib/db/client";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { getClientIp } from "@/lib/request";
+import { getClientIp, getSiteUrl } from "@/lib/request";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 
 export const MIN_PASSWORD_LENGTH = 8;
@@ -19,15 +20,22 @@ export interface CreateClinicInput {
 /**
  * Self-serve version of scripts/seedClinic.mjs — creates a brand new
  * clinic (tenant) plus its first staff account, provisioned as 'doctor'
- * (the clinic owner). Clinic + Staff live in Postgres — the auth claims
- * hook (prisma/migrations/20260920180000_auth_rls_and_claims_hook) reads
- * `staff` to put clinic_id/staff_role on the JWT, and getClinic()/
- * listClinicStaff() now read Postgres too, so no Firestore mirror is
- * needed here anymore.
+ * (the clinic owner).
+ *
+ * The email address is NOT trusted until the owner clicks the confirmation
+ * link Supabase emails them (handled by app/auth/confirm/route.ts), so this
+ * uses signUp() — which sends that email — rather than the admin
+ * createUser({ email_confirm: true }) it used before, which marked every
+ * address verified without checking it. Until they confirm they cannot sign
+ * in, so the clinic and staff rows created here are inert.
+ *
+ * Requires "Confirm email" to be ON in Supabase → Authentication → Sign In
+ * / Providers → Email. If it's off, signUp returns a live session; in
+ * production that's treated as a misconfiguration and refused.
  */
 export async function createClinicAction(
   input: CreateClinicInput
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; verificationSent?: boolean }> {
   const ip = getClientIp();
   const { allowed } = await checkRateLimit({ bucket: "signup", key: ip, max: 5, windowMs: 60 * 60 * 1000 });
   if (!allowed) return { error: "Too many sign-up attempts. Please try again later." };
@@ -37,7 +45,7 @@ export async function createClinicAction(
 
   const clinicName = input.clinicName.trim();
   const name = input.name.trim();
-  const email = input.email.trim();
+  const email = input.email.trim().toLowerCase();
   const password = input.password;
 
   if (!clinicName || !name || !email || !password) {
@@ -47,34 +55,48 @@ export async function createClinicAction(
     return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` };
   }
 
-  const clinic = await prisma.clinic.create({ data: { name: clinicName } });
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name }, emailRedirectTo: `${getSiteUrl()}/auth/confirm?next=/dashboard` },
+  });
 
-  try {
-    const { data: userData, error: userError } = await supabaseAdmin().auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { name },
-    });
-
-    if (userError || !userData.user) {
-      if (userError?.code === "email_exists") {
-        return { error: "An account with that email already exists — try signing in instead." };
-      }
-      console.error("Failed to create Supabase auth user:", userError);
-      return { error: "Something went wrong creating your clinic. Please try again." };
+  if (error || !data.user) {
+    if (error?.code === "user_already_exists" || error?.code === "email_exists") {
+      return { error: "An account with that email already exists — try signing in instead." };
     }
-
-    await prisma.staff.create({
-      data: { id: userData.user.id, clinicId: clinic.id, name, email, role: "doctor" },
-    });
-
-    return {};
-  } catch (err) {
-    console.error("Failed to create clinic:", err);
-    // Best-effort cleanup — the clinic row is orphaned without a staff
-    // member if anything above failed.
-    await prisma.clinic.delete({ where: { id: clinic.id } }).catch(() => {});
+    console.error("Failed to sign up:", error);
     return { error: "Something went wrong creating your clinic. Please try again." };
   }
+  // With "Confirm email" on, signing up an address that already has an
+  // account returns a user with no identities instead of an error (so the
+  // API doesn't reveal which emails exist). Never attach a new clinic to
+  // that other person's account.
+  if (data.user.identities?.length === 0) {
+    return { error: "An account with that email already exists — try signing in instead." };
+  }
+  if (data.session && process.env.NODE_ENV === "production") {
+    console.error("Supabase 'Confirm email' is disabled — refusing to create an unverified account.");
+    await supabaseAdmin().auth.admin.deleteUser(data.user.id).catch(() => {});
+    return { error: "Sign-up is temporarily unavailable. Please contact support." };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const clinic = await tx.clinic.create({ data: { name: clinicName } });
+      await tx.staff.create({
+        data: { id: data.user!.id, clinicId: clinic.id, name, email, role: "doctor" },
+      });
+    });
+  } catch (err) {
+    console.error("Failed to create clinic:", err);
+    // Don't leave an auth user with no clinic behind.
+    await supabaseAdmin().auth.admin.deleteUser(data.user.id).catch(() => {});
+    return { error: "Something went wrong creating your clinic. Please try again." };
+  }
+
+  // A session only exists here in dev with confirmation switched off; the
+  // caller then just proceeds to sign in as before.
+  return { verificationSent: !data.session };
 }
