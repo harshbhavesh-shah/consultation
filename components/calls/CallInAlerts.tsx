@@ -73,38 +73,50 @@ export default function CallInAlerts({ clinicId }: { clinicId: string }) {
 
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`patient-calls-${clinicId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "patient_calls", filter: `clinic_id=eq.${clinicId}` },
-        (payload) => {
-          const row = payload.new as CallRow;
-          if (seen.current.has(row.id)) return;
-          seen.current.add(row.id);
-          setCalls((prev) => [
-            ...prev,
-            { id: row.id, patientName: row.patient_name, tokenNumber: row.token_number, calledByName: row.called_by_name },
-          ]);
-          chime();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "patient_calls", filter: `clinic_id=eq.${clinicId}` },
-        (payload) => {
-          const row = payload.new as CallRow;
-          if (row.acknowledged_at) setCalls((prev) => prev.filter((c) => c.id !== row.id));
-        }
-      )
-      // Fetch after every successful (re)subscribe: covers the gap between
-      // the initial load and the channel going live, and any reconnect.
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") void refresh();
-      });
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    // Subscribe one tick later, not synchronously. React's dev/StrictMode
+    // mounts, immediately unmounts and re-mounts every effect; a synchronous
+    // subscribe/unsubscribe/subscribe made the client tear down the shared
+    // socket in between and leave the second channel "joined" but never
+    // delivering events (verified: a channel created by hand afterwards
+    // received them fine). The cleanup cancels a mount React discards before
+    // any channel exists, so only the real one ever subscribes.
+    const timer = setTimeout(() => {
+      channel = supabase
+        .channel(`patient-calls-${clinicId}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "patient_calls", filter: `clinic_id=eq.${clinicId}` },
+          (payload) => {
+            const row = payload.new as CallRow;
+            if (seen.current.has(row.id)) return;
+            seen.current.add(row.id);
+            setCalls((prev) => [
+              ...prev,
+              { id: row.id, patientName: row.patient_name, tokenNumber: row.token_number, calledByName: row.called_by_name },
+            ]);
+            chime();
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "patient_calls", filter: `clinic_id=eq.${clinicId}` },
+          (payload) => {
+            const row = payload.new as CallRow;
+            if (row.acknowledged_at) setCalls((prev) => prev.filter((c) => c.id !== row.id));
+          }
+        )
+        // Fetch after every successful (re)subscribe: covers the gap between
+        // the initial load and the channel going live, and any reconnect.
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") void refresh();
+        });
+    }, 0);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearTimeout(timer);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [clinicId, refresh]);
 
