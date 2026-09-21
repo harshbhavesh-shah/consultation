@@ -43,7 +43,7 @@ export async function reassignDailyTokens(clinicId: string, appointmentDate: str
 
   const entries: QueueEntry[] = [];
   for (const row of rows) {
-    if (row.status === "Cancelled") continue; // not a queue slot
+    if (row.status === "Cancelled" || row.status === "NoShow") continue; // not a queue slot
     if (!row.appointmentTime) continue;
 
     entries.push({

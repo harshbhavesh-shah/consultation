@@ -333,7 +333,7 @@ export async function getBookedTimesForDateAction(date: string, excludeId?: stri
   const session = await requireSession();
   const appointments = await getAppointmentsForDate(session.clinicId, date);
   return appointments
-    .filter((a) => a.status !== "Cancelled" && a.id !== excludeId)
+    .filter((a) => a.status !== "Cancelled" && a.status !== "NoShow" && a.id !== excludeId)
     .map((a) => a.appointment_time);
 }
 

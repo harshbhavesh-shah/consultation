@@ -193,6 +193,7 @@ export default function AppointmentsViewSwitcher({
     { label: "Seen", dot: STATUS_STYLES.Visited.dot },
     { label: "Waiting", dot: STATUS_STYLES.Booked.dot },
     { label: "Cancelled", dot: STATUS_STYLES.Cancelled.dot },
+    { label: "No-show", dot: STATUS_STYLES.NoShow.dot },
   ];
 
   return (

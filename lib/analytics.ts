@@ -6,7 +6,7 @@ export interface AnalyticsSummary {
   onlineRevenue: number;
   patientsSeen: number;
   totalBooked: number; // Booked + Visited (excludes Cancelled) — the denominator for "116 of 124 booked"
-  noShows: number; // still Booked, but the date has already passed — same definition the no-show follow-up cron uses
+  noShows: number; // flagged No-show, or still Booked though the date has passed (not yet flipped by the daily detection)
   morningVisits: number;
   afternoonVisits: number;
   morningRevenue: number;
@@ -63,7 +63,9 @@ export function computeAnalytics(appointments: Appointment[], today: string): An
   // Same "still Booked the day after" rule app/api/cron/send-scheduled-messages
   // uses to trigger the no-show follow-up message — a Booked appointment
   // whose date has already passed and was never marked Visited.
-  const noShows = notCancelled.filter((a) => a.status === "Booked" && a.appointment_date < today).length;
+  const noShows = notCancelled.filter(
+    (a) => a.status === "NoShow" || (a.status === "Booked" && a.appointment_date < today)
+  ).length;
 
   return {
     totalRevenue,

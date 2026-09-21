@@ -5,12 +5,14 @@ export const STATUS_STYLES: Record<AppointmentStatus, { bg: string; text: string
   Booked: { bg: "bg-gold-100", text: "text-gold-600", dot: "bg-gold-500" },
   Visited: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-600" },
   Cancelled: { bg: "bg-beige-300", text: "text-brown-500", dot: "bg-brown-400" },
+  NoShow: { bg: "bg-amber-50", text: "text-amber-800", dot: "bg-amber-600" },
 };
 
 export const STATUS_LABELS: Record<AppointmentStatus, string> = {
   Booked: "Booked",
   Visited: "Visited",
   Cancelled: "Cancelled",
+  NoShow: "No-show",
 };
 
 // A Booked appointment reads as "Waiting" once its slot time has passed,
@@ -21,6 +23,6 @@ export function statusLabel(appointment: Appointment, dateStr: string): string {
     const late = minutesPastSlot(appointment.appointment_time, dateStr);
     return late > 0 ? `Waiting ${late} min` : "Booked";
   }
-  const labels: Record<AppointmentStatus, string> = { Booked: "Booked", Visited: "Seen", Cancelled: "Cancelled" };
+  const labels: Record<AppointmentStatus, string> = { Booked: "Booked", Visited: "Seen", Cancelled: "Cancelled", NoShow: "No-show" };
   return labels[appointment.status];
 }

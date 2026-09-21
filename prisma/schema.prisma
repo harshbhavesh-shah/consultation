@@ -64,6 +64,7 @@ enum AppointmentStatus {
   Booked
   Visited
   Cancelled
+  NoShow
 
   @@map("appointment_status")
 }
@@ -102,6 +103,18 @@ enum Shift {
   afternoon
 
   @@map("shift")
+}
+
+// How a no-show follow-up reads to the patient. "kind" only decides what
+// fills the template's second variable (survey link / offer text / blank);
+// every kind sends through the same no_show_followup template category.
+enum NoShowFollowUpKind {
+  survey
+  incentive
+  reminder
+  custom
+
+  @@map("no_show_follow_up_kind")
 }
 
 enum WhatsAppConnectionStatus {
@@ -157,6 +170,9 @@ model Clinic {
   conversations      WhatsAppConversation[]
   auditLogs          AuditLog[]
   patientCalls       PatientCall[]
+  noShowFollowUps    NoShowFollowUp[]
+  noShowMessageLogs  NoShowMessageLog[]
+  noShowSurveys      NoShowSurveyResponse[]
 
   @@map("clinics")
 }
@@ -239,6 +255,9 @@ model Appointment {
   diagnosis String @default("")
 
   followUp              Int?    @map("follow_up")
+  // Staff cleared this follow-up from the Retention list ("done or skipped").
+  // Suppresses the automatic reminder too; the recorded follow_up days stay.
+  followUpDismissed     Boolean @default(false) @map("follow_up_dismissed")
   followUpSent          Boolean @default(false) @map("follow_up_sent")
   followUpDayBeforeSent Boolean @default(false) @map("follow_up_day_before_sent")
 
@@ -262,6 +281,9 @@ model Appointment {
   clinic  Clinic   @relation(fields: [clinicId], references: [id])
   patient Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
   calls   PatientCall[]
+
+  noShowMessages NoShowMessageLog[]
+  noShowSurvey   NoShowSurveyResponse?
 
   @@index([clinicId, appointmentDate, appointmentTime])
   @@index([clinicId, appointmentDate])
@@ -361,6 +383,7 @@ model MessageTemplate {
 
   clinic   Clinic            @relation(fields: [clinicId], references: [id])
   messages WhatsAppMessage[]
+  noShowFollowUps NoShowFollowUp[]
 
   @@index([clinicId])
   @@map("message_templates")
@@ -483,4 +506,71 @@ model PatientCall {
   @@index([clinicId, createdAt(sort: Desc)])
   @@index([appointmentId])
   @@map("patient_calls")
+}
+
+// A clinic's configurable automated follow-up for a missed appointment
+// (ported from RadianceLaser). Each fires `delayHours` after the
+// appointment's own scheduled time, once the appointment has been flagged a
+// no-show, through the linked message template. Deleting the template
+// removes the follow-ups that use it.
+model NoShowFollowUp {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clinicId   String             @map("clinic_id") @db.Uuid
+  name       String
+  kind       NoShowFollowUpKind
+  templateId String             @map("template_id") @db.Uuid
+  offerText  String?            @map("offer_text")
+  enabled    Boolean            @default(false)
+  delayHours Int                @default(4) @map("delay_hours")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  clinic   Clinic          @relation(fields: [clinicId], references: [id])
+  template MessageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@map("no_show_follow_ups")
+}
+
+// Which follow-ups have gone to which appointment — one appointment can
+// trigger several, each at most once. followUpName is a snapshot so the
+// history still reads after a follow-up is renamed or deleted. Rows go with
+// the appointment (cascade), which also covers patient erasure.
+model NoShowMessageLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clinicId      String   @map("clinic_id") @db.Uuid
+  appointmentId String   @map("appointment_id") @db.Uuid
+  followUpId    String   @map("follow_up_id") @db.Uuid
+  followUpName  String   @map("follow_up_name")
+  sentAt        DateTime @default(now()) @map("sent_at")
+
+  clinic      Clinic      @relation(fields: [clinicId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@unique([appointmentId, followUpId])
+  @@index([clinicId, sentAt(sort: Desc)])
+  @@map("no_show_message_logs")
+}
+
+// "Why didn't you come in" answer, created only when a survey-kind follow-up
+// fires. The public page (app/no-show-survey/[token]) is reached by the
+// opaque `token` alone — never the appointment id — so a guessed or shared
+// link can't be walked to enumerate other patients. Free-text comments may
+// contain health details, so this is patient data: it cascades with the
+// appointment like everything else.
+model NoShowSurveyResponse {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clinicId      String    @map("clinic_id") @db.Uuid
+  appointmentId String    @unique @map("appointment_id") @db.Uuid
+  token         String    @unique
+  reason        String?
+  comment       String?
+  sentAt        DateTime? @map("sent_at")
+  respondedAt   DateTime? @map("responded_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  clinic      Clinic      @relation(fields: [clinicId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, respondedAt(sort: Desc)])
+  @@map("no_show_survey_responses")
 }

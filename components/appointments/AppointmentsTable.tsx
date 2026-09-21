@@ -8,7 +8,7 @@ import { STATUS_STYLES, statusLabel } from "./statusStyles";
 import AppointmentDetailPanel from "./AppointmentDetailPanel";
 import type { Appointment, UserRole } from "@/types";
 
-type Filter = "all" | "Booked" | "Visited" | "Cancelled";
+type Filter = "all" | "Booked" | "Visited" | "Cancelled" | "NoShow";
 
 function ageGender(a: Appointment): string {
   const age = a.age !== "" ? `${a.age} yrs` : "";
@@ -43,6 +43,7 @@ export default function AppointmentsTable({
     Booked: appointments.filter((a) => a.status === "Booked").length,
     Visited: appointments.filter((a) => a.status === "Visited").length,
     Cancelled: appointments.filter((a) => a.status === "Cancelled").length,
+    NoShow: appointments.filter((a) => a.status === "NoShow").length,
   };
 
   const filtered = filter === "all" ? appointments : appointments.filter((a) => a.status === filter);
@@ -114,6 +115,8 @@ function FilterPills({
     { key: "Booked", label: "Waiting", dot: STATUS_STYLES.Booked.dot },
     { key: "Visited", label: "Seen", dot: STATUS_STYLES.Visited.dot },
     { key: "Cancelled", label: "Cancelled", dot: STATUS_STYLES.Cancelled.dot },
+    // Only worth a chip once there is one (the count would just sit at 0).
+    ...(counts.NoShow > 0 ? [{ key: "NoShow" as const, label: "No-show", dot: STATUS_STYLES.NoShow.dot }] : []),
   ];
 
   return (

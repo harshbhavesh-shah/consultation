@@ -45,6 +45,7 @@ function toAppointment(row: PrismaAppointment): Appointment {
     follow_up: row.followUp ?? "",
     follow_up_sent: row.followUpSent,
     follow_up_day_before_sent: row.followUpDayBeforeSent,
+    follow_up_dismissed: row.followUpDismissed,
     call_back: row.callBack ?? "",
     call_back_due_date: row.callBackDueDate,
     call_back_completed_at: row.callBackCompletedAt,
@@ -81,7 +82,7 @@ export async function createAppointment(
   clinicId: string,
   input: Omit<
     Appointment,
-    "id" | "clinicId" | "createdAt" | "token_number" | "shift" | "receipt_sent" | "no_show_sent" | "feedback_sent"
+    "id" | "clinicId" | "createdAt" | "token_number" | "shift" | "receipt_sent" | "no_show_sent" | "feedback_sent" | "follow_up_dismissed"
   >,
   opts: { dataConsentAt?: Date } = {}
 ): Promise<string> {
@@ -149,6 +150,7 @@ function toPrismaUpdateData(patch: Partial<Appointment>): Prisma.AppointmentUnch
   if ("follow_up" in patch) data.followUp = patch.follow_up === "" ? null : patch.follow_up;
   if ("follow_up_sent" in patch) data.followUpSent = patch.follow_up_sent;
   if ("follow_up_day_before_sent" in patch) data.followUpDayBeforeSent = patch.follow_up_day_before_sent;
+  if ("follow_up_dismissed" in patch) data.followUpDismissed = patch.follow_up_dismissed;
   if ("call_back" in patch) data.callBack = patch.call_back === "" ? null : patch.call_back;
   if ("call_back_due_date" in patch) data.callBackDueDate = patch.call_back_due_date;
   if ("call_back_completed_at" in patch) data.callBackCompletedAt = patch.call_back_completed_at;

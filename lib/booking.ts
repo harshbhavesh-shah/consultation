@@ -46,7 +46,7 @@ export async function createPublicBooking(
   // Re-check the slot is still open server-side — the client's live
   // availability view can be stale by the time of submit.
   const existing = await getAppointmentsForDate(clinicId, input.date);
-  const taken = existing.some((a) => a.status !== "Cancelled" && a.appointment_time === input.time);
+  const taken = existing.some((a) => a.status !== "Cancelled" && a.status !== "NoShow" && a.appointment_time === input.time);
   if (taken) {
     return { error: "That time slot was just booked by someone else. Please pick another." };
   }

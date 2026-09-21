@@ -34,7 +34,7 @@ export async function GET(request: Request, { params }: { params: { clinicId: st
     getAppointmentsForDate(params.clinicId, date),
     Promise.resolve(closed ? [] : generateDailySlots(override)),
   ]);
-  const bookedTimes = appointments.filter((a) => a.status !== "Cancelled").map((a) => a.appointment_time);
+  const bookedTimes = appointments.filter((a) => a.status !== "Cancelled" && a.status !== "NoShow").map((a) => a.appointment_time);
   const morningSlots = allSlots.filter((t) => shiftForTime(t) === "morning");
   const eveningSlots = allSlots.filter((t) => shiftForTime(t) === "afternoon");
 

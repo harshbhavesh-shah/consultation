@@ -22,7 +22,7 @@ export interface Staff {
   createdAt: number;
 }
 
-export type AppointmentStatus = "Booked" | "Visited" | "Cancelled";
+export type AppointmentStatus = "Booked" | "Visited" | "Cancelled" | "NoShow";
 export type EntrySource = "online" | "walkin";
 export type PaymentType = "Cash" | "Online" | "";
 export type AgeUnit = "years" | "months";
@@ -55,6 +55,7 @@ export interface Appointment {
   follow_up: number | "";
   follow_up_sent: boolean;
   follow_up_day_before_sent: boolean;
+  follow_up_dismissed: boolean;
 
   call_back: number | "";
   call_back_due_date: string | null;
@@ -206,4 +207,41 @@ export interface WhatsAppMessage {
   templateId: string | null;
   providerMessageId: string | null;
   createdAt: number;
+}
+
+// --- Patient retention (ported from RadianceLaser) ---
+
+export type NoShowFollowUpKind = "survey" | "incentive" | "reminder" | "custom";
+
+export interface NoShowFollowUp {
+  id: string;
+  clinicId: string;
+  name: string;
+  kind: NoShowFollowUpKind;
+  templateId: string;
+  offerText?: string;
+  enabled: boolean;
+  delayHours: number; // after the appointment's scheduled time
+  createdAt: number;
+}
+
+export type NoShowReason = "forgot" | "schedule_conflict" | "found_elsewhere" | "cost" | "other";
+
+export interface NoShowSurveyResponse {
+  id: string;
+  clinicId: string;
+  appointmentId: string;
+  token: string;
+  reason?: NoShowReason;
+  comment?: string;
+  sentAt?: number;
+  respondedAt?: number;
+  createdAt: number;
+}
+
+export interface NoShowMessageLogEntry {
+  id: string;
+  appointmentId: string;
+  followUpName: string;
+  sentAt: number;
 }
