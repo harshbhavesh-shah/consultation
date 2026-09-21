@@ -11,9 +11,17 @@ import { defineConfig, env } from "prisma/config";
 // standalone, not through Next.js, so it doesn't get .env.local for free.
 loadEnv({ path: ".env.local" });
 
+// `prisma generate` only reads the schema — it never opens a connection — but
+// env() throws when the variable is missing, and generate runs from
+// postinstall/build on every deploy (including Vercel Preview builds, which
+// often don't have DIRECT_URL). So only generate gets a placeholder; every
+// command that really connects (migrate, db push, studio…) still fails
+// loudly if DIRECT_URL is unset.
+const isGenerate = process.argv.includes("generate");
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: env("DIRECT_URL"),
+    url: isGenerate ? (process.env.DIRECT_URL ?? "postgresql://unused@localhost:5432/unused") : env("DIRECT_URL"),
   },
 });

@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { getClientIp, getSiteUrl } from "@/lib/request";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 
-export const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 8;
 
 export interface CreateClinicInput {
   clinicName: string;
