@@ -22,21 +22,47 @@ import LogoutButton from "@/components/LogoutButton";
 import { useSidebarCollapse } from "@/components/SidebarContext";
 import type { Session, UserRole } from "@/types";
 
-const NAV_ITEMS: {
+interface NavItem {
   label: string;
   href: string;
   icon: typeof LayoutDashboard;
   roles?: UserRole[]; // omit = visible to everyone
-}[] = [
-  { label: "Today", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
-  { label: "Inbox", href: "/dashboard/inbox", icon: Inbox },
-  { label: "Patients", href: "/dashboard/patients", icon: Users },
-  { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3, roles: ["doctor"] },
-  { label: "Attendance", href: "/dashboard/attendance", icon: Clock },
-  { label: "Availability", href: "/dashboard/availability", icon: CalendarClock },
-  { label: "Communication", href: "/dashboard/communication", icon: MessageCircle, roles: ["doctor"] },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  // Not wired to real data yet — no clinic-wide unread-count query exists.
+  // Left in the shape so a real count can be threaded through later
+  // without touching the rendering below.
+  badge?: number;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Clinic",
+    items: [
+      { label: "Today", href: "/dashboard", icon: LayoutDashboard },
+      { label: "Appointments", href: "/dashboard/appointments", icon: Calendar },
+      { label: "Patients", href: "/dashboard/patients", icon: Users },
+      { label: "Inbox", href: "/dashboard/inbox", icon: Inbox },
+    ],
+  },
+  {
+    label: "Practice",
+    items: [
+      { label: "Attendance", href: "/dashboard/attendance", icon: Clock },
+      { label: "Availability", href: "/dashboard/availability", icon: CalendarClock },
+      { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3, roles: ["doctor"] },
+    ],
+  },
+  {
+    label: "Setup",
+    items: [
+      { label: "Communication", href: "/dashboard/communication", icon: MessageCircle, roles: ["doctor"] },
+      { label: "Settings", href: "/dashboard/settings", icon: Settings },
+    ],
+  },
 ];
 
 function Mark({ size = 32 }: { size?: number }) {
@@ -50,6 +76,16 @@ function Mark({ size = 32 }: { size?: number }) {
   );
 }
 
+// Derived purely from the signed-in email — there's no display-name field
+// on Session to draw from (see types/index.ts).
+function initialsFrom(email: string | null): string {
+  if (!email) return "?";
+  const local = email.split("@")[0];
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return local.slice(0, 2).toUpperCase();
+}
+
 export default function Sidebar({ clinicName, session }: { clinicName: string; session: Session }) {
   const pathname = usePathname();
   const { collapsed, toggleUserPreference } = useSidebarCollapse();
@@ -60,38 +96,60 @@ export default function Sidebar({ clinicName, session }: { clinicName: string; s
   }, [pathname]);
 
   function NavLinks({ showLabels }: { showLabels: boolean }) {
-    const visibleItems = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(session.role));
-    return (
-      <nav className="flex-1 space-y-0.5 px-3">
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
+    const visibleGroups = NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.roles || item.roles.includes(session.role)),
+    })).filter((group) => group.items.length > 0);
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              // Every nav item is always on screen in the sidebar, so
-              // Next.js's default link prefetching would otherwise
-              // server-render (and re-run every data fetch for) every page
-              // in the app on every render of the sidebar itself — for
-              // Patients that meant reading the whole patients collection
-              // in the background just from sitting on any other page.
-              prefetch={false}
-              title={showLabels ? undefined : item.label}
-              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
-                showLabels ? "" : "justify-center"
-              } ${
-                isActive
-                  ? "bg-brown-700/60 text-white"
-                  : "text-beige-200 hover:bg-brown-700/60 hover:text-white"
-              }`}
-            >
-              <Icon size={18} className="flex-shrink-0" />
-              {showLabels && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+    return (
+      <nav className="flex-1 space-y-5 px-3">
+        {visibleGroups.map((group, groupIndex) => (
+          <div key={group.label} className="space-y-0.5">
+            {showLabels ? (
+              <div className="px-3 pb-1.5 text-[11px] font-medium uppercase tracking-wide text-brown-400/70">
+                {group.label}
+              </div>
+            ) : (
+              groupIndex > 0 && <div className="mx-3 mb-2 h-px bg-white/10" />
+            )}
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              const tooltip = item.badge ? `${item.label}, ${item.badge} unread` : item.label;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  // Every nav item is always on screen in the sidebar, so
+                  // Next.js's default link prefetching would otherwise
+                  // server-render (and re-run every data fetch for) every
+                  // page in the app on every render of the sidebar itself —
+                  // for Patients that meant reading the whole patients
+                  // collection in the background just from sitting on any
+                  // other page.
+                  prefetch={false}
+                  title={showLabels ? undefined : tooltip}
+                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
+                    showLabels ? "" : "justify-center"
+                  } ${
+                    isActive
+                      ? "bg-gold-500 font-medium text-white"
+                      : "text-beige-200 hover:bg-brown-700/60 hover:text-white"
+                  }`}
+                >
+                  <Icon size={18} className="flex-shrink-0" />
+                  {showLabels && <span className="flex-1">{item.label}</span>}
+                  {showLabels && !!item.badge && (
+                    <span className="min-w-[20px] flex-none rounded-full bg-gold-100 px-1.5 py-0.5 text-center text-[11px] font-semibold text-gold-600">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
     );
   }
@@ -166,7 +224,7 @@ export default function Sidebar({ clinicName, session }: { clinicName: string; s
 
         <NavLinks showLabels={!collapsed} />
 
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2 pt-3">
           <button
             onClick={toggleUserPreference}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -180,15 +238,23 @@ export default function Sidebar({ clinicName, session }: { clinicName: string; s
         </div>
 
         <div className={`border-t border-brown-700/60 py-4 ${collapsed ? "px-2" : "px-6"}`}>
-          {!collapsed && (
+          {collapsed ? (
+            <div className="flex flex-col items-center gap-3">
+              <div
+                title={session.email ?? undefined}
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-gold-100 text-[13px] font-semibold text-gold-600"
+              >
+                {initialsFrom(session.email)}
+              </div>
+              <LogoutButton />
+            </div>
+          ) : (
             <>
               <div className="truncate text-sm text-beige-200">{session.email}</div>
               <div className="mb-3 text-xs uppercase tracking-wide text-brown-400">{session.role}</div>
+              <LogoutButton />
             </>
           )}
-          <div className={collapsed ? "flex justify-center" : ""}>
-            <LogoutButton />
-          </div>
         </div>
       </aside>
     </>
