@@ -36,8 +36,7 @@ Cloudflare, Resend) reporting a breach that could include our data.
    `DATABASE_URL` and `DIRECT_URL` in Vercel and redeploy.
 3. **Key/secret leaked:** rotate it at the source and in Vercel, then redeploy:
    `SUPABASE_SECRET_KEY` (Supabase → API Keys), `CRON_SECRET`,
-   `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `TURNSTILE_SECRET_KEY`, `RESEND_KEY_ID` (Resend dashboard),
-   `SEND_EMAIL_HOOK_SECRET` (regenerate in Supabase → Authentication → Hooks, then update Vercel).
+   `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `TURNSTILE_SECRET_KEY`, `RESEND_KEY_ID` (Resend dashboard → API Keys, then update Vercel).
    - **`ENCRYPTION_KEY`** (encrypts WhatsApp credentials): rotating it makes
      stored credentials unreadable. Instead, treat the affected clinics'
      **Meta access tokens and app secrets as compromised** — have them

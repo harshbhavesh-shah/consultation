@@ -32,7 +32,7 @@ function SignupForm() {
     setError(null);
     setLoading(true);
 
-    let result: { error?: string; verificationSent?: boolean };
+    let result: { error?: string; verificationSent?: boolean; emailFailed?: boolean };
     try {
       result = await createClinicAction({ clinicName, name, email, password, turnstileToken });
     } catch (err) {
@@ -55,6 +55,9 @@ function SignupForm() {
     // Normal path: a confirmation email is on its way and the account can't
     // sign in until it's clicked.
     if (result.verificationSent) {
+      if (result.emailFailed) {
+        setResendNote("We couldn't send the email just now — press “Send the email again”.");
+      }
       setVerificationSent(true);
       setLoading(false);
       return;

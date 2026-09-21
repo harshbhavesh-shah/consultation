@@ -2,7 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { getClientIp, getSiteUrl } from "@/lib/request";
+import { getClientIp } from "@/lib/request";
+import { prisma } from "@/lib/db/client";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import { sendVerificationEmail } from "@/lib/auth/verificationEmail";
 
 /**
  * Replaces the old Firebase flow entirely: client-side signInWithEmailAndPassword
@@ -31,8 +34,11 @@ export async function signInAction(email: string, password: string): Promise<{ e
   return {};
 }
 
-/** Re-sends the signup confirmation email. Always reports success so it
- * can't be used to discover which addresses have accounts. */
+/** Re-sends the signup confirmation email. Always reports success (unless
+ * rate-limited) so it can't be used to discover which addresses have
+ * accounts. Only ever acts on an existing, still-unconfirmed clinic owner:
+ * generateLink("magiclink") would otherwise CREATE a user for an unknown
+ * address, so we check our own staff table first. */
 export async function resendVerificationAction(email: string): Promise<{ error?: string }> {
   const normalized = email.trim().toLowerCase();
   const [byEmail, byIp] = await Promise.all([
@@ -41,13 +47,28 @@ export async function resendVerificationAction(email: string): Promise<{ error?:
   ]);
   if (!byEmail.allowed || !byIp.allowed) return { error: "Too many requests. Please try again in a while." };
 
-  const supabase = createClient();
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email: normalized,
-    options: { emailRedirectTo: `${getSiteUrl()}/auth/confirm?next=/dashboard` },
-  });
-  if (error) console.error("Failed to resend verification email:", error.code);
+  try {
+    const staff = await prisma.staff.findFirst({ where: { email: normalized }, select: { id: true, name: true } });
+    if (!staff) return {};
+
+    const admin = supabaseAdmin();
+    const { data: existing } = await admin.auth.admin.getUserById(staff.id);
+    if (!existing.user || existing.user.email_confirmed_at) return {};
+
+    const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: normalized });
+    if (error || !data.properties) {
+      console.error("Failed to generate verification link:", error?.code);
+      return {};
+    }
+    await sendVerificationEmail({
+      email: normalized,
+      name: staff.name,
+      tokenHash: data.properties.hashed_token,
+      type: "magiclink",
+    });
+  } catch (err) {
+    console.error("Failed to resend verification email:", err instanceof Error ? err.message : err);
+  }
   return {};
 }
 

@@ -7,10 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 // the session cookies), then sends them on — for a new clinic owner that's
 // /dashboard, which routes them into two-step setup at /mfa.
 //
-// The link is built by app/api/auth/send-email (the Supabase Send Email hook)
-// as /auth/confirm?token_hash=…&type=signup&next=/dashboard, so it works from
-// any browser or device. The `code` (PKCE) branch below is only a fallback
-// for when the hook is switched off and Supabase's default template is used.
+// The link is built by lib/auth/verificationEmail.ts and emailed via Resend:
+// /auth/confirm?token_hash=…&type=signup|magiclink&next=/dashboard. Because
+// the token is verified here on the server it works from any browser or
+// device. The `code` (PKCE) branch below is only a fallback.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const tokenHash = searchParams.get("token_hash");
