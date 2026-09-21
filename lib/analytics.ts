@@ -5,6 +5,8 @@ export interface AnalyticsSummary {
   cashRevenue: number;
   onlineRevenue: number;
   patientsSeen: number;
+  totalBooked: number; // Booked + Visited (excludes Cancelled) — the denominator for "116 of 124 booked"
+  noShows: number; // still Booked, but the date has already passed — same definition the no-show follow-up cron uses
   morningVisits: number;
   afternoonVisits: number;
   morningRevenue: number;
@@ -13,8 +15,9 @@ export interface AnalyticsSummary {
   topDiagnoses: { diagnosis: string; count: number }[];
 }
 
-export function computeAnalytics(appointments: Appointment[]): AnalyticsSummary {
+export function computeAnalytics(appointments: Appointment[], today: string): AnalyticsSummary {
   const visited = appointments.filter((a) => a.status === "Visited");
+  const notCancelled = appointments.filter((a) => a.status !== "Cancelled");
 
   let totalRevenue = 0;
   let cashRevenue = 0;
@@ -57,11 +60,18 @@ export function computeAnalytics(appointments: Appointment[]): AnalyticsSummary 
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
+  // Same "still Booked the day after" rule app/api/cron/send-scheduled-messages
+  // uses to trigger the no-show follow-up message — a Booked appointment
+  // whose date has already passed and was never marked Visited.
+  const noShows = notCancelled.filter((a) => a.status === "Booked" && a.appointment_date < today).length;
+
   return {
     totalRevenue,
     cashRevenue,
     onlineRevenue,
     patientsSeen: visited.length,
+    totalBooked: notCancelled.length,
+    noShows,
     morningVisits,
     afternoonVisits,
     morningRevenue,
@@ -71,15 +81,40 @@ export function computeAnalytics(appointments: Appointment[]): AnalyticsSummary 
   };
 }
 
-/** Visited-count per day, oldest to newest, for the trailing-30-day trend
- * chart — independent of whatever range tab is selected. */
-export function computeDailyTrend(appointments: Appointment[]): { date: string; count: number }[] {
-  const byDay = new Map<string, number>();
+export interface MonthlyTrendDay {
+  date: string;
+  value: number;
+  kind: "seen" | "bookedAhead";
+}
+
+/** One entry per day of the given calendar month — Visited counts for days
+ * up to and including today ("seen"), Booked-status counts for days after
+ * today ("booked ahead", appointments already on the books that haven't
+ * happened yet). Always the current month, independent of whichever range
+ * tab is selected on the page, same as the Cash Reconciliation panel. */
+export function computeMonthlyTrend(appointments: Appointment[], monthStart: string, monthEnd: string, today: string): MonthlyTrendDay[] {
+  const seenByDay = new Map<string, number>();
+  const bookedByDay = new Map<string, number>();
   for (const a of appointments) {
-    if (a.status !== "Visited") continue;
-    byDay.set(a.appointment_date, (byDay.get(a.appointment_date) ?? 0) + 1);
+    if (a.status === "Visited") {
+      seenByDay.set(a.appointment_date, (seenByDay.get(a.appointment_date) ?? 0) + 1);
+    } else if (a.status === "Booked") {
+      bookedByDay.set(a.appointment_date, (bookedByDay.get(a.appointment_date) ?? 0) + 1);
+    }
   }
-  return Array.from(byDay.entries())
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => (a.date < b.date ? -1 : 1));
+
+  const days: MonthlyTrendDay[] = [];
+  const cursor = new Date(`${monthStart}T00:00:00`);
+  const end = new Date(`${monthEnd}T00:00:00`);
+  while (cursor <= end) {
+    const date = cursor.toISOString().slice(0, 10);
+    const isPastOrToday = date <= today;
+    days.push({
+      date,
+      value: isPastOrToday ? (seenByDay.get(date) ?? 0) : (bookedByDay.get(date) ?? 0),
+      kind: isPastOrToday ? "seen" : "bookedAhead",
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
 }

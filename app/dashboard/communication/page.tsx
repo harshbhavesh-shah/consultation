@@ -5,7 +5,7 @@ import WhatsAppSection from "@/components/communication/WhatsAppSection";
 import WebhookInfoSection from "@/components/communication/WebhookInfoSection";
 import MessageTemplatesSection from "@/components/communication/MessageTemplatesSection";
 import SetupStepsNav, { type SetupStep } from "@/components/communication/SetupStepsNav";
-import StatusChip from "@/components/communication/StatusChip";
+import StatusChip from "@/components/StatusChip";
 
 export default async function CommunicationPage() {
   const session = await getSession();

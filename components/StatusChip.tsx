@@ -1,6 +1,7 @@
 const TONE_STYLES = {
   positive: { bg: "bg-green-50", text: "text-green-700", dot: "bg-green-600" },
   neutral: { bg: "bg-beige-300", text: "text-brown-600", dot: "bg-brown-400" },
+  negative: { bg: "bg-red-50", text: "text-red-700", dot: "bg-red-600" },
 } as const;
 
 export default function StatusChip({ label, tone }: { label: string; tone: keyof typeof TONE_STYLES }) {

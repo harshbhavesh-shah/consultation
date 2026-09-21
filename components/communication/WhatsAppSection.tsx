@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { connectWhatsAppAction, disconnectWhatsAppAction } from "@/app/dashboard/communication/actions";
-import StatusChip from "./StatusChip";
+import StatusChip from "@/components/StatusChip";
 
 // Client-safe projection of WhatsAppConnection — the raw accessToken/
 // appSecret never reach this component (types/index.ts says as much: "never

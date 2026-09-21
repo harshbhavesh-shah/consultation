@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
-import StatusChip from "./StatusChip";
+import StatusChip from "@/components/StatusChip";
 
 function CopyField({ label, value, disabled }: { label: string; value: string; disabled?: boolean }) {
   const [copied, setCopied] = useState(false);
