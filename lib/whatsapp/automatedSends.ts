@@ -1,8 +1,8 @@
 import "server-only";
 import { activeProvider } from "@/lib/whatsapp/activeProvider";
-import { getWhatsAppConnection, recordWhatsAppError } from "@/lib/firestore/whatsappConnections";
-import { getTemplateByCategory } from "@/lib/firestore/messageTemplates";
-import { recordOutboundMessage } from "@/lib/firestore/whatsappConversations";
+import { getWhatsAppConnection, recordWhatsAppError } from "@/lib/db/whatsappConnections";
+import { getTemplateByCategory } from "@/lib/db/messageTemplates";
+import { recordOutboundMessage } from "@/lib/db/whatsappConversations";
 import { toWhatsAppPhone } from "@/lib/phone";
 import type { MessageTemplate, MessageTemplateCategory } from "@/types";
 

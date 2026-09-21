@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { getClinicConversations } from "@/lib/firestore/whatsappConversations";
+import { getClinicConversations } from "@/lib/db/whatsappConversations";
 import InboxClient from "@/components/inbox/InboxClient";
 
 export default async function InboxPage() {

@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { getAttendanceForDate, getTodaysEntryForStaff } from "@/lib/firestore/attendance";
+import { getAttendanceForDate, getTodaysEntryForStaff } from "@/lib/db/attendance";
 import AttendanceClock from "@/components/AttendanceClock";
 
 function todayLocalStr(): string {

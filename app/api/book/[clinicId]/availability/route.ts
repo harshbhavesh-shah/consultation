@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAppointmentsForDate } from "@/lib/firestore/appointments";
-import { getAvailabilityOverride } from "@/lib/firestore/availability";
+import { getAppointmentsForDate } from "@/lib/db/appointments";
+import { getAvailabilityOverride } from "@/lib/db/availability";
 import { generateDailySlots, isBookableDate, shiftForTime } from "@/lib/slots";
 
 // Public, read-only: returns which HH:MM slots are already taken for a

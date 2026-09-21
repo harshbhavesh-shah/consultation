@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { getAppointmentsForDate } from "@/lib/firestore/appointments";
+import { getAppointmentsForDate } from "@/lib/db/appointments";
 import AppointmentsViewSwitcher from "@/components/appointments/AppointmentsViewSwitcher";
 
 function todayLocalStr(): string {

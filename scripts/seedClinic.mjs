@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * Bootstraps the clinic (tenant) and its staff accounts, with the correct
- * Firebase Auth custom claims (clinicId + role) that the whole app relies
- * on for tenant isolation and role-based access. There's no self-serve
- * signup UI in this app — this is how you create clinic accounts.
+ * Bootstraps the clinic (tenant) and its staff accounts. There's no
+ * self-serve signup UI for adding staff to an existing clinic — this is
+ * how you create those accounts.
  *
- * Also creates each user's Firestore staff mirror doc.
+ * Creates a Supabase Auth user and the Postgres `staff` row the auth
+ * claims hook reads from (see
+ * prisma/migrations/20260920180000_auth_rls_and_claims_hook) to put
+ * clinic_id/staff_role on that user's JWT.
  *
  * Usage (create a clinic + one staff account):
  *   node scripts/seedClinic.mjs \
@@ -24,14 +26,15 @@
  *     --password "some-temporary-password" \
  *     --role reception
  *
- * Requires .env.local to be filled in with FIREBASE_ADMIN_* values.
+ * Requires .env.local to be filled in with DATABASE_URL, SUPABASE_SECRET_KEY,
+ * and NEXT_PUBLIC_SUPABASE_URL values.
  */
 
 import { config } from "dotenv";
 config({ path: ".env.local" });
-import { initializeApp, cert } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { createClient } from "@supabase/supabase-js";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 function parseArgs() {
   const args = {};
@@ -63,46 +66,46 @@ async function main() {
     process.exit(1);
   }
 
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
-  if (!projectId || !clientEmail || !privateKey) {
-    console.error("Missing Firebase Admin credentials in .env.local. See .env.local.example.");
+  if (!supabaseUrl || !supabaseSecretKey) {
+    console.error("Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY in .env.local. See .env.local.example.");
     process.exit(1);
   }
 
-  initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-  const auth = getAuth();
-  const db = getFirestore();
+  const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const prisma = new PrismaClient({ adapter: new PrismaPg(process.env.DATABASE_URL) });
 
   let clinicId = existingClinicId;
 
   if (!clinicId) {
-    const clinicRef = db.collection("clinics").doc();
-    await clinicRef.set({ name: clinicName, createdAt: Date.now() });
-    clinicId = clinicRef.id;
+    const clinic = await prisma.clinic.create({ data: { name: clinicName } });
+    clinicId = clinic.id;
     console.log(`✓ Created clinic "${clinicName}" (id: ${clinicId})`);
   }
 
-  const userRecord = await auth.createUser({ email, password, displayName: staffName });
-  console.log(`✓ Created user ${email} (uid: ${userRecord.uid})`);
-
-  await auth.setCustomUserClaims(userRecord.uid, { clinicId, role });
-  console.log(`✓ Set custom claims: { clinicId: "${clinicId}", role: "${role}" }`);
-
-  await db.collection("staff").doc(userRecord.uid).set({
-    clinicId,
-    uid: userRecord.uid,
-    name: staffName,
+  const { data: userData, error: userError } = await supabase.auth.admin.createUser({
     email,
-    role,
-    createdAt: Date.now(),
+    password,
+    email_confirm: true,
+    user_metadata: { name: staffName },
   });
-  console.log(`✓ Created staff record for "${staffName}"`);
+  if (userError || !userData.user) {
+    console.error("Failed to create Supabase auth user:", userError);
+    process.exit(1);
+  }
+  const uid = userData.user.id;
+  console.log(`✓ Created user ${email} (uid: ${uid})`);
+
+  await prisma.staff.create({ data: { id: uid, clinicId, name: staffName, email, role } });
+  console.log(`✓ Created Postgres staff row: { clinicId: "${clinicId}", role: "${role}" }`);
 
   console.log(`\nDone. This user can sign in at /login with the email/password above.`);
   console.log(`Clinic id for future staff: ${clinicId}`);
+  await prisma.$disconnect();
 }
 
 main().catch((err) => {

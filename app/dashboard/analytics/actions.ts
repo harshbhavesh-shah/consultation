@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
-import { setCashDeposit } from "@/lib/firestore/cashDeposits";
+import { setCashDeposit } from "@/lib/db/cashDeposits";
 
 export async function setBankDepositAction(period: string, amount: number): Promise<{ error?: string }> {
   const session = await getSession();

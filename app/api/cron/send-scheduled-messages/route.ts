@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { listConnectedClinicIds } from "@/lib/firestore/whatsappConnections";
-import { getClinic } from "@/lib/firestore/clinics";
-import { getAppointmentsInRange, updateAppointment } from "@/lib/firestore/appointments";
+import { listConnectedClinicIds } from "@/lib/db/whatsappConnections";
+import { getClinic } from "@/lib/db/clinics";
+import { getAppointmentsInRange, updateAppointment } from "@/lib/db/appointments";
 import { computeFollowUpDueDate } from "@/lib/followups";
 import { formatTo12Hour } from "@/lib/slots";
 import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";

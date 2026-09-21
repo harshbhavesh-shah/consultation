@@ -2,9 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
-import { proceedAfterSignIn } from "@/lib/authFlow";
+import { signInAction } from "@/lib/auth/actions";
 
 export default function LoginPage() {
   return (
@@ -27,16 +25,17 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      const idToken = await credential.user.getIdToken();
-      const outcome = await proceedAfterSignIn(idToken, router, searchParams.get("next"));
-      if (outcome.error) {
-        setError(outcome.error);
+      const result = await signInAction(email, password);
+      if (result.error) {
+        setError(result.error);
         setLoading(false);
+        return;
       }
+      router.push(searchParams.get("next") || "/dashboard");
+      router.refresh();
     } catch (err) {
       console.error(err);
-      setError(describeAuthError(err));
+      setError("Something went wrong signing in. Check the browser console for details.");
       setLoading(false);
     }
   }
@@ -98,27 +97,4 @@ function LoginForm() {
       </div>
     </main>
   );
-}
-
-function describeAuthError(err: unknown): string {
-  const code = (err as { code?: string })?.code ?? "";
-
-  switch (code) {
-    case "auth/invalid-credential":
-    case "auth/wrong-password":
-    case "auth/user-not-found":
-      return "Incorrect email or password.";
-    case "auth/too-many-requests":
-      return "Too many failed attempts. Please wait a moment and try again.";
-    case "auth/network-request-failed":
-      return "Network error — check your connection and try again.";
-    case "auth/invalid-api-key":
-    case "auth/api-key-not-valid":
-      return "Firebase client config looks wrong — double-check the NEXT_PUBLIC_FIREBASE_* " +
-        "values in .env.local match your Firebase project.";
-    default:
-      return code
-        ? `Sign-in failed (${code}). Check the browser console for details.`
-        : "Something went wrong signing in. Check the browser console for details.";
-  }
 }

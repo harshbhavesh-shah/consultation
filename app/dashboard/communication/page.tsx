@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/session";
-import { getWhatsAppConnection } from "@/lib/firestore/whatsappConnections";
-import { listTemplates } from "@/lib/firestore/messageTemplates";
+import { getWhatsAppConnection } from "@/lib/db/whatsappConnections";
+import { listTemplates } from "@/lib/db/messageTemplates";
 import WhatsAppSection from "@/components/communication/WhatsAppSection";
 import WebhookInfoSection from "@/components/communication/WebhookInfoSection";
 import MessageTemplatesSection from "@/components/communication/MessageTemplatesSection";

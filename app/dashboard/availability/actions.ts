@@ -6,7 +6,7 @@ import {
   setAvailabilityOverride,
   deleteAvailabilityOverride,
   type AvailabilityOverrideInput,
-} from "@/lib/firestore/availability";
+} from "@/lib/db/availability";
 
 async function requireSession() {
   const session = await getSession();

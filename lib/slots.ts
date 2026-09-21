@@ -25,7 +25,7 @@ function toHHMM(totalMinutes: number): string {
 }
 
 /** All bookable HH:MM slots for a day, morning window then evening window.
- * An `override` (from the availability calendar, see lib/firestore/
+ * An `override` (from the availability calendar, see lib/db/
  * availability.ts) narrows or closes either shift for this specific date —
  * an empty start/end for a shift means that shift is closed for the date,
  * same convention ASC_current's appointment.html used. */

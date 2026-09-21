@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/session";
-import { getClinic } from "@/lib/firestore/clinics";
-import { listClinicStaff } from "@/lib/firestore/staff";
+import { getClinic } from "@/lib/db/clinics";
+import { listClinicStaff } from "@/lib/db/staff";
 import AddStaffForm from "@/components/settings/AddStaffForm";
 import StaffList from "@/components/settings/StaffList";
 

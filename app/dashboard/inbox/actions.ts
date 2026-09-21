@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
-import { getWhatsAppConnection } from "@/lib/firestore/whatsappConnections";
+import { getWhatsAppConnection } from "@/lib/db/whatsappConnections";
 import {
   getConversation,
   getConversationMessages,
   recordOutboundMessage,
   markConversationRead,
-} from "@/lib/firestore/whatsappConversations";
+} from "@/lib/db/whatsappConversations";
 import { activeProvider } from "@/lib/whatsapp/activeProvider";
 import { toWhatsAppPhone } from "@/lib/phone";
 import type { WhatsAppMessage } from "@/types";

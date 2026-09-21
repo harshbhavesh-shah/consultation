@@ -8,15 +8,13 @@ import {
   deleteAppointment as deleteAppointmentDb,
   createAppointment,
   isLockedForReception,
-} from "@/lib/firestore/appointments";
-import { reassignDailyTokens, countStillWaitingAhead } from "@/lib/tokenQueue";
-import { findPatientsByPhone, createPatient } from "@/lib/firestore/patients";
-import {
   getAppointmentsForDate,
   getAppointmentsInRange,
   getAppointmentsByPatientId,
   findAppointmentsByPhone,
-} from "@/lib/firestore/appointments";
+} from "@/lib/db/appointments";
+import { reassignDailyTokens, countStillWaitingAhead } from "@/lib/tokenQueue";
+import { findPatientsByPhone, createPatient } from "@/lib/db/patients";
 import { computeCallBackDueDate } from "@/lib/followups";
 import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 import type { Appointment } from "@/types";

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import { getSession } from "@/lib/session";
-import { adminDb } from "@/lib/firebase/admin";
-import { getAppointmentsByPatientId } from "@/lib/firestore/appointments";
+import { getPatientById } from "@/lib/db/patients";
+import { getAppointmentsByPatientId } from "@/lib/db/appointments";
 import { formatTo12Hour } from "@/lib/slots";
 import { STATUS_STYLES, statusLabel } from "@/components/appointments/statusStyles";
-import type { Appointment, Patient } from "@/types";
+import type { Appointment } from "@/types";
 
 function todayLocalStr(): string {
   const now = new Date();
@@ -26,23 +26,10 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
   const session = await getSession();
   if (!session) return null;
 
-  const doc = await adminDb().collection("patients").doc(params.id).get();
-  if (!doc.exists || doc.data()?.clinicId !== session.clinicId) {
+  const patient = await getPatientById(session.clinicId, params.id);
+  if (!patient) {
     return <p className="text-sm text-brown-600">Patient not found.</p>;
   }
-  const data = doc.data()!;
-  const patient: Patient = {
-    id: doc.id,
-    clinicId: data.clinicId,
-    patient_id: data.patient_id,
-    name: data.name,
-    phone: data.phone,
-    address: data.address ?? "",
-    age: data.age ?? "",
-    age_unit: data.age_unit ?? "years",
-    gender: data.gender ?? "",
-    createdAt: data.createdAt,
-  };
 
   // Already sorted newest first by getAppointmentsByPatientId.
   const visits = await getAppointmentsByPatientId(session.clinicId, params.id);

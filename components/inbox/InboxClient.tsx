@@ -2,21 +2,79 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import { sendReplyAction, markConversationReadAction } from "@/app/dashboard/inbox/actions";
+import { createClient } from "@/lib/supabase/client";
+import { sendReplyAction, markConversationReadAction, loadConversationMessagesAction } from "@/app/dashboard/inbox/actions";
 import type { WhatsAppConversation, WhatsAppMessage } from "@/types";
 
 function formatTimestamp(ms: number): string {
   return new Date(ms).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 }
 
-// Firestore's client SDK is already used for auth (see login/signup) — this
-// is its first Firestore (not just Auth) use, giving the Inbox live
-// updates via onSnapshot instead of the poll/refresh-on-navigate pattern
-// used elsewhere in this app. All *writes* still go through server actions
-// using the Admin SDK; firestore.rules only grants clients read access to
-// their own clinic's whatsappConversations/messages.
+// Raw Postgres row shapes as Realtime delivers them (snake_case column
+// names, timestamps as ISO strings) — translated into the app's
+// WhatsAppConversation/WhatsAppMessage shape below, same translation-
+// boundary principle as lib/db/*.ts (those run server-side; this is the
+// one place that has to do it client-side, since Realtime payloads are raw
+// rows, not something that goes through our data layer).
+interface ConversationRow {
+  id: string;
+  clinic_id: string;
+  patient_id: string | null;
+  patient_name: string | null;
+  phone_number: string;
+  last_message_preview: string;
+  last_message_at: string;
+  unread_count: number;
+  updated_at: string;
+}
+interface MessageRow {
+  id: string;
+  clinic_id: string;
+  conversation_id: string;
+  direction: "inbound" | "outbound";
+  body: string;
+  status: WhatsAppMessage["status"];
+  template_id: string | null;
+  provider_message_id: string | null;
+  created_at: string;
+}
+
+function toConversation(row: ConversationRow): WhatsAppConversation {
+  return {
+    id: row.id,
+    clinicId: row.clinic_id,
+    patientId: row.patient_id,
+    patientName: row.patient_name,
+    phoneNumber: row.phone_number,
+    lastMessagePreview: row.last_message_preview,
+    lastMessageAt: new Date(row.last_message_at).getTime(),
+    unreadCount: row.unread_count,
+    updatedAt: new Date(row.updated_at).getTime(),
+  };
+}
+function toMessage(row: MessageRow): WhatsAppMessage {
+  return {
+    id: row.id,
+    clinicId: row.clinic_id,
+    conversationId: row.conversation_id,
+    direction: row.direction,
+    body: row.body,
+    status: row.status,
+    templateId: row.template_id,
+    providerMessageId: row.provider_message_id,
+    createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+// Supabase Realtime (Postgres Changes) replaces Firestore's onSnapshot
+// here — same live-update role, different shape: instead of a query
+// snapshot with the full current result set on every change, each event is
+// one changed row, merged into local state by hand below. RLS on
+// whatsapp_conversations/whatsapp_messages (see
+// prisma/migrations/20260920180000_auth_rls_and_claims_hook) scopes each
+// subscriber to their own clinic's rows, same protection firestore.rules
+// gave the old listeners. All *writes* still go through server actions
+// using the Prisma/service connection.
 export default function InboxClient({
   clinicId,
   initialConversations,
@@ -33,26 +91,28 @@ export default function InboxClient({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const q = query(collection(db, "whatsappConversations"), where("clinicId", "==", clinicId), orderBy("lastMessageAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setConversations(
-        snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            clinicId: data.clinicId,
-            patientId: data.patientId ?? null,
-            patientName: data.patientName ?? null,
-            phoneNumber: data.phoneNumber,
-            lastMessagePreview: data.lastMessagePreview ?? "",
-            lastMessageAt: data.lastMessageAt,
-            unreadCount: data.unreadCount ?? 0,
-            updatedAt: data.updatedAt,
-          } satisfies WhatsAppConversation;
-        })
-      );
-    });
-    return unsubscribe;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`whatsapp-conversations-${clinicId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "whatsapp_conversations", filter: `clinic_id=eq.${clinicId}` },
+        (payload) => {
+          setConversations((prev) => {
+            if (payload.eventType === "DELETE") {
+              return prev.filter((c) => c.id !== (payload.old as ConversationRow).id);
+            }
+            const updated = toConversation(payload.new as ConversationRow);
+            const withoutOld = prev.filter((c) => c.id !== updated.id);
+            return [...withoutOld, updated].sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [clinicId]);
 
   useEffect(() => {
@@ -60,27 +120,35 @@ export default function InboxClient({
       setMessages([]);
       return;
     }
-    const q = query(collection(db, "whatsappConversations", selectedId, "messages"), orderBy("createdAt", "asc"));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setMessages(
-        snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            clinicId: data.clinicId,
-            conversationId: data.conversationId,
-            direction: data.direction,
-            body: data.body,
-            status: data.status,
-            templateId: data.templateId ?? null,
-            providerMessageId: data.providerMessageId ?? null,
-            createdAt: data.createdAt,
-          } satisfies WhatsAppMessage;
-        })
-      );
+
+    let cancelled = false;
+    const supabase = createClient();
+
+    // Realtime only streams changes from the moment of subscribing —
+    // fetch the existing thread once up front, same initial-load role the
+    // Firestore query's first snapshot played.
+    loadConversationMessagesAction(selectedId).then((initial) => {
+      if (!cancelled) setMessages(initial);
     });
+
+    const channel = supabase
+      .channel(`whatsapp-messages-${selectedId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `conversation_id=eq.${selectedId}` },
+        (payload) => {
+          const incoming = toMessage(payload.new as MessageRow);
+          setMessages((prev) => (prev.some((m) => m.id === incoming.id) ? prev : [...prev, incoming]));
+        }
+      )
+      .subscribe();
+
     markConversationReadAction(selectedId);
-    return unsubscribe;
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, [selectedId]);
 
   useEffect(() => {

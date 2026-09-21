@@ -7,14 +7,14 @@ import {
   disconnectWhatsApp,
   getWhatsAppConnection,
   type SaveWhatsAppConnectionInput,
-} from "@/lib/firestore/whatsappConnections";
+} from "@/lib/db/whatsappConnections";
 import {
   createTemplate,
   updateTemplate,
   deleteTemplate,
   getTemplate,
   type TemplateInput,
-} from "@/lib/firestore/messageTemplates";
+} from "@/lib/db/messageTemplates";
 import { activeProvider } from "@/lib/whatsapp/activeProvider";
 import { toWhatsAppPhone, isValidPhone } from "@/lib/phone";
 

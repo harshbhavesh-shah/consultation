@@ -1,6 +1,6 @@
 import "server-only";
 import { revalidateTag } from "next/cache";
-import { adminDb } from "@/lib/firebase/admin";
+import { prisma } from "@/lib/db/client";
 import { shiftForTime } from "@/lib/slots";
 import type { Shift } from "@/types";
 
@@ -29,30 +29,34 @@ interface QueueEntry {
 }
 
 export async function reassignDailyTokens(clinicId: string, appointmentDate: string): Promise<QueueEntry[]> {
-  const snap = await adminDb()
-    .collection("appointments")
-    .where("clinicId", "==", clinicId)
-    .where("appointment_date", "==", appointmentDate)
-    .get();
+  const rows = await prisma.appointment.findMany({
+    where: { clinicId, appointmentDate },
+    select: {
+      id: true,
+      appointmentTime: true,
+      status: true,
+      entrySource: true,
+      patientName: true,
+      createdAt: true,
+    },
+  });
 
-  const entries: (QueueEntry & { prevToken: number })[] = [];
-  snap.forEach((doc) => {
-    const data = doc.data();
-    if (data.status === "Cancelled") return; // not a queue slot
-    if (!data.appointment_time) return;
+  const entries: QueueEntry[] = [];
+  for (const row of rows) {
+    if (row.status === "Cancelled") continue; // not a queue slot
+    if (!row.appointmentTime) continue;
 
     entries.push({
-      id: doc.id,
-      appointment_time: data.appointment_time,
-      status: data.status || "Booked",
-      entry_source: data.entry_source || "online",
-      patient_name: data.patient_name || "",
-      createdAt: data.createdAt || 0,
-      shift: shiftForTime(data.appointment_time),
-      prevToken: data.token_number || 0,
+      id: row.id,
+      appointment_time: row.appointmentTime,
+      status: row.status,
+      entry_source: row.entrySource,
+      patient_name: row.patientName,
+      createdAt: row.createdAt.getTime(),
+      shift: shiftForTime(row.appointmentTime),
       token_number: 0,
     });
-  });
+  }
 
   entries.sort((a, b) => {
     if (a.appointment_time !== b.appointment_time) {
@@ -61,30 +65,24 @@ export async function reassignDailyTokens(clinicId: string, appointmentDate: str
     return a.createdAt - b.createdAt;
   });
 
-  const batch = adminDb().batch();
-  let pendingWrites = 0;
-
   const shiftCounters: Record<Shift, number> = { morning: 0, afternoon: 0 };
-  entries.forEach((entry) => {
+  const writes = entries.map((entry) => {
     shiftCounters[entry.shift] += 1;
     entry.token_number = shiftCounters[entry.shift];
-    if (entry.prevToken !== entry.token_number || true) {
-      // Shift can also change (e.g. rescheduled across the boundary), so
-      // always write shift alongside token_number rather than only on a
-      // token_number diff.
-      batch.update(adminDb().collection("appointments").doc(entry.id), {
-        token_number: entry.token_number,
-        shift: entry.shift,
-      });
-      pendingWrites++;
-    }
+    // Shift can also change (e.g. rescheduled across the boundary), so
+    // always write shift alongside token_number rather than only on a
+    // token_number diff.
+    return prisma.appointment.update({
+      where: { id: entry.id },
+      data: { tokenNumber: entry.token_number, shift: entry.shift },
+    });
   });
 
-  if (pendingWrites > 0) {
-    await batch.commit();
-    // Bypasses lib/firestore/appointments.ts's create/update/delete
-    // wrappers (it's a direct batch write), so it has to invalidate the
-    // cached appointments-for-date/range reads itself.
+  if (writes.length > 0) {
+    await prisma.$transaction(writes);
+    // Bypasses lib/db/appointments.ts's create/update/delete wrappers
+    // (it's a direct batch write), so it has to invalidate the cached
+    // appointments-for-date/range reads itself.
     revalidateTag(`appointments-${clinicId}`);
   }
 

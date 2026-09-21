@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
-import { searchPatients } from "@/lib/firestore/patients";
-import { getCallbacksDueToday, updateAppointment, getAppointment } from "@/lib/firestore/appointments";
+import { searchPatients } from "@/lib/db/patients";
+import { getCallbacksDueToday, updateAppointment, getAppointment } from "@/lib/db/appointments";
 import type { Patient } from "@/types";
 
 async function requireSession() {

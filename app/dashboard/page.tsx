@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { getSession } from "@/lib/session";
-import { getAppointmentsForDate } from "@/lib/firestore/appointments";
-import { getAttendanceForDate } from "@/lib/firestore/attendance";
-import { listClinicStaff } from "@/lib/firestore/staff";
+import { getAppointmentsForDate } from "@/lib/db/appointments";
+import { getAttendanceForDate } from "@/lib/db/attendance";
+import { listClinicStaff } from "@/lib/db/staff";
 import { formatTo12Hour, minutesPastSlot } from "@/lib/slots";
 import CallbackReminders from "@/components/CallbackReminders";
 import { STATUS_STYLES } from "@/components/appointments/statusStyles";

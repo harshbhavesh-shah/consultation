@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { getAppointment } from "@/lib/firestore/appointments";
+import { getAppointment } from "@/lib/db/appointments";
 import WalkInForm from "@/components/appointments/WalkInForm";
 
 function todayLocalStr(): string {

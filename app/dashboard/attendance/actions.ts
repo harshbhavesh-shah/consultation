@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/session";
-import { clockIn, getTodaysEntryForStaff } from "@/lib/firestore/attendance";
+import { clockIn, getTodaysEntryForStaff } from "@/lib/db/attendance";
 
 function todayLocalStr(): string {
   const now = new Date();
@@ -20,7 +21,16 @@ export async function clockInAction(): Promise<{ error?: string }> {
   if (existing) return { error: "You're already clocked in today." };
 
   const name = session.email?.split("@")[0] ?? "Staff";
-  await clockIn(session.clinicId, session.uid, name, today);
+  try {
+    await clockIn(session.clinicId, session.uid, name, today);
+  } catch (err) {
+    // A genuine race between two near-simultaneous clock-ins — the
+    // getTodaysEntryForStaff check above already caught the common case.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return { error: "You're already clocked in today." };
+    }
+    throw err;
+  }
   revalidatePath("/dashboard/attendance");
   return {};
 }

@@ -2,7 +2,8 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { prisma } from "@/lib/db/client";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { UserRole } from "@/types";
 
 async function requireDoctor() {
@@ -13,9 +14,9 @@ async function requireDoctor() {
 }
 
 // Mirrors scripts/seedClinic.mjs's account-provisioning steps (create the
-// Auth user, stamp clinicId+role as custom claims, mirror into the staff
-// collection) so accounts created here work identically to ones bootstrapped
-// from the CLI.
+// Supabase Auth user, create the Postgres staff row the claims hook reads)
+// so accounts created here work identically to ones bootstrapped from the
+// CLI.
 export async function addStaffAction(input: {
   name: string;
   email: string;
@@ -34,21 +35,24 @@ export async function addStaffAction(input: {
   if (input.role !== "reception" && input.role !== "doctor") return { error: "Invalid role." };
 
   try {
-    const userRecord = await adminAuth().createUser({ email, password, displayName: name });
-    await adminAuth().setCustomUserClaims(userRecord.uid, { clinicId: session.clinicId, role: input.role });
-    await adminDb().collection("staff").doc(userRecord.uid).set({
-      clinicId: session.clinicId,
-      uid: userRecord.uid,
-      name,
+    const { data: userData, error: userError } = await supabaseAdmin().auth.admin.createUser({
       email,
-      role: input.role,
-      createdAt: Date.now(),
+      password,
+      email_confirm: true,
+      user_metadata: { name },
+    });
+    if (userError || !userData.user) {
+      if (userError?.code === "email_exists") {
+        return { error: "An account with this email already exists." };
+      }
+      console.error("Failed to add staff:", userError);
+      return { error: "Something went wrong. Please try again." };
+    }
+
+    await prisma.staff.create({
+      data: { id: userData.user.id, clinicId: session.clinicId, name, email, role: input.role },
     });
   } catch (err) {
-    const code = (err as { code?: string })?.code;
-    if (code === "auth/email-already-exists") {
-      return { error: "An account with this email already exists." };
-    }
     console.error("Failed to add staff:", err);
     return { error: "Something went wrong. Please try again." };
   }
@@ -63,8 +67,8 @@ export async function removeStaffAction(uid: string): Promise<{ error?: string }
   if (uid === session.uid) return { error: "You can't remove your own account." };
 
   try {
-    await adminAuth().deleteUser(uid);
-    await adminDb().collection("staff").doc(uid).delete();
+    await supabaseAdmin().auth.admin.deleteUser(uid);
+    await prisma.staff.delete({ where: { id: uid } }).catch(() => {});
   } catch (err) {
     console.error("Failed to remove staff:", err);
     return { error: "Something went wrong. Please try again." };

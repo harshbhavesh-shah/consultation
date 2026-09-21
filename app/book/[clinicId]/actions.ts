@@ -1,10 +1,10 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase/admin";
-import { getAppointmentsForDate, createAppointment } from "@/lib/firestore/appointments";
+import { getClinic } from "@/lib/db/clinics";
+import { getAppointmentsForDate, createAppointment } from "@/lib/db/appointments";
 import { reassignDailyTokens, countStillWaitingAhead } from "@/lib/tokenQueue";
 import { isBookableDate, generateDailySlots, formatTo12Hour } from "@/lib/slots";
-import { getAvailabilityOverride } from "@/lib/firestore/availability";
+import { getAvailabilityOverride } from "@/lib/db/availability";
 import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 
 export interface BookingResult {
@@ -34,8 +34,8 @@ export async function createPublicBookingAction(
     return { error: "That time isn't available for booking." };
   }
 
-  const clinicDoc = await adminDb().collection("clinics").doc(clinicId).get();
-  if (!clinicDoc.exists) {
+  const clinic = await getClinic(clinicId);
+  if (!clinic) {
     return { error: "Clinic not found." };
   }
 

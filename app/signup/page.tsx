@@ -2,9 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
-import { proceedAfterSignIn } from "@/lib/authFlow";
+import { signInAction } from "@/lib/auth/actions";
 import { createClinicAction } from "./actions";
 
 export default function SignupPage() {
@@ -51,13 +49,14 @@ function SignupForm() {
     }
 
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
-      const idToken = await credential.user.getIdToken();
-      const outcome = await proceedAfterSignIn(idToken, router, searchParams.get("next"));
+      const outcome = await signInAction(email, password);
       if (outcome.error) {
         setError(outcome.error);
         setLoading(false);
+        return;
       }
+      router.push(searchParams.get("next") || "/dashboard");
+      router.refresh();
     } catch (err) {
       console.error(err);
       setError("Clinic was created, but signing you in failed — try signing in from the login page.");

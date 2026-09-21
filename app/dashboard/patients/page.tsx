@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { listAllPatients, getPatientCount } from "@/lib/firestore/patients";
+import { listAllPatients, getPatientCount } from "@/lib/db/patients";
 import PatientSearch from "@/components/patients/PatientSearch";
 
 export default async function PatientsPage() {

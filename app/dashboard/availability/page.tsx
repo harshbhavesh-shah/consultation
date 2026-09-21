@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/session";
-import { listUpcomingOverrides } from "@/lib/firestore/availability";
+import { listUpcomingOverrides } from "@/lib/db/availability";
 import { todayLocalStr } from "@/lib/calendar";
 import AvailabilityCalendar from "@/components/availability/AvailabilityCalendar";
 

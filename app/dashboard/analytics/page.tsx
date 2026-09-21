@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/session";
-import { getAppointmentsInRange } from "@/lib/firestore/appointments";
-import { getCashDeposit } from "@/lib/firestore/cashDeposits";
+import { getAppointmentsInRange } from "@/lib/db/appointments";
+import { getCashDeposit } from "@/lib/db/cashDeposits";
 import { computeAnalytics, computeDailyTrend } from "@/lib/analytics";
 import CashReconciliation from "@/components/analytics/CashReconciliation";
 

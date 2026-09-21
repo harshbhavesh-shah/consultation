@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { activeProvider } from "@/lib/whatsapp/activeProvider";
-import { getWhatsAppConnectionByPhoneNumberId } from "@/lib/firestore/whatsappConnections";
-import { recordInboundMessage } from "@/lib/firestore/whatsappConversations";
+import { getWhatsAppConnectionByPhoneNumberId } from "@/lib/db/whatsappConnections";
+import { recordInboundMessage } from "@/lib/db/whatsappConversations";
 
 // One shared webhook URL for every clinic — Meta's payload carries its own
 // `phone_number_id`, which is looked up against each clinic's
