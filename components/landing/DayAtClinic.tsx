@@ -127,9 +127,9 @@ export default function DayAtClinic() {
           <div className="relative w-[380px] max-w-[80%]">
             <div className="rounded-xl border border-beige-300 bg-surface p-[26px] shadow-card">
               <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-display text-[28px] text-brown-900">Vikram Patil</span>
-                  <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-beige-200 px-2.5 text-[13px] font-medium text-brown-900">
+                  <span className="ml-auto inline-flex h-[26px] items-center gap-1.5 rounded-full bg-beige-200 px-2.5 text-[13px] font-medium text-brown-900">
                     <span className="h-1.5 w-1.5 rounded-full bg-brown-900" />
                     In consultation
                   </span>
@@ -153,7 +153,7 @@ export default function DayAtClinic() {
                 </div>
               </div>
             </div>
-            <div className="absolute -bottom-9 -right-4 flex w-[280px] max-w-[92vw] items-start gap-2.5 rounded-xl border border-beige-300 bg-surface p-[14px] text-sm leading-snug text-brown-600 shadow-card">
+            <div className="absolute -bottom-9 -right-4 hidden w-[280px] items-start gap-2.5 rounded-xl border border-beige-300 bg-surface p-[14px] text-sm leading-snug text-brown-600 shadow-card sm:flex">
               <ShieldCheck size={18} className="mt-px flex-none text-brown-600" />
               <span>
                 <strong className="text-brown-900">Locked once done.</strong> Reception can view it. Only Dr. Shah
@@ -191,7 +191,7 @@ export default function DayAtClinic() {
                   </span>
                 </div>
               </div>
-              <div className="absolute -bottom-16 -right-6 flex w-[250px] max-w-[85vw] flex-col gap-2 rounded-xl border border-beige-300 bg-surface p-4 text-sm tabular-nums text-brown-600 shadow-card">
+              <div className="absolute -bottom-16 -right-6 hidden w-[250px] flex-col gap-2 rounded-xl border border-beige-300 bg-surface p-4 text-sm tabular-nums text-brown-600 shadow-card sm:flex">
                 <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Cash reconciliation</span>
                 <div className="flex justify-between">
                   <span>Cash collected</span>

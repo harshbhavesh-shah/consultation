@@ -71,7 +71,7 @@ function SignupForm() {
 
       <div className="relative w-full max-w-sm rounded-xl bg-surface p-8 shadow-card ring-1 ring-beige-300">
         <p className="text-center text-xs font-medium uppercase tracking-wide text-brown-400">
-          ASC Consultation
+          Loupe by Radiance
         </p>
         <h1 className="mt-1 text-center font-display text-2xl font-medium text-brown-900">
           Create your clinic

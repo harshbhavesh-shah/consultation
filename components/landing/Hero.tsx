@@ -12,8 +12,12 @@ export default function Hero() {
       <div className="pointer-events-none absolute -right-24 -top-36 h-[420px] w-[420px] rounded-full bg-orange-100 opacity-80 blur-3xl" />
       <div className="pointer-events-none absolute -left-16 bottom-0 h-[420px] w-[420px] rounded-full bg-amber-100 opacity-70 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-[460px] w-[460px] rounded-full bg-beige-200 opacity-90 blur-3xl" />
+      {/* The mask keeps doodles clear of the text column in the two-column
+          desktop layout — that concept doesn't apply once the hero stacks
+          to one column below lg, where the pattern would sit behind the
+          body text instead, so it's hidden rather than masked there. */}
       <div
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 hidden lg:block"
         style={{
           WebkitMaskImage: "linear-gradient(to right, transparent 0, transparent 47%, #000 70%)",
           maskImage: "linear-gradient(to right, transparent 0, transparent 47%, #000 70%)",

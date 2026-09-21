@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ASC Consultation",
+  title: "Loupe by Radiance",
   description: "Clinic consultation booking & queue management",
 };
 

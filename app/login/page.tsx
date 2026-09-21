@@ -57,7 +57,7 @@ function LoginForm() {
             A
           </div>
           <div className="flex flex-col items-center gap-1.5">
-            <p className="text-xs font-medium uppercase tracking-wide text-brown-400">ASC Consultation</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-brown-400">Loupe by Radiance</p>
             <h1 className="font-display text-3xl font-normal text-brown-900">Staff sign in</h1>
             <div className="mt-1 flex gap-1">
               <span className="h-1 w-[18px] rounded-full bg-gold-600" />

@@ -70,7 +70,28 @@ export default function RolesTable() {
         </p>
       </div>
 
-      <div className="w-full max-w-2xl overflow-x-auto rounded-xl border border-beige-300 bg-surface pb-2 pt-6 shadow-card">
+      {/* Below sm, the 3-column grid doesn't fit without horizontal
+          scrolling past the Doctor column with no visible hint it's there
+          — a stacked card per capability reads better on a phone. */}
+      <div className="flex w-full max-w-2xl flex-col gap-3 sm:hidden">
+        {ROWS.map((row) => (
+          <div key={row.capability} className="flex flex-col gap-3 rounded-xl border border-beige-300 bg-surface p-5 shadow-card">
+            <span className="text-base text-brown-900">{row.capability}</span>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Reception</span>
+                <Badge cell={row.reception} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Doctor</span>
+                <Badge cell={row.doctor} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden w-full max-w-2xl overflow-x-auto rounded-xl border border-beige-300 bg-surface pb-2 pt-6 shadow-card sm:block">
         <div className="grid min-w-[560px] grid-cols-[1fr_150px_150px] items-center gap-x-4 px-7 pb-3.5 sm:grid-cols-[1fr_190px_190px]">
           <span />
           <span className="text-xs font-medium uppercase tracking-wide text-brown-400">Reception</span>

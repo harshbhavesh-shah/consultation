@@ -4,7 +4,7 @@ export default function WelcomePage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-4">
       <div className="w-full max-w-sm rounded-xl bg-surface p-8 text-center shadow-card ring-1 ring-beige-300">
-        <p className="text-xs font-medium uppercase tracking-wide text-brown-400">ASC Consultation</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-brown-400">Loupe by Radiance</p>
         <h1 className="mt-1 font-display text-2xl font-medium text-brown-900">Welcome</h1>
         <div className="mx-auto mb-6 mt-3 h-[2px] w-10 bg-gold-500" />
 
