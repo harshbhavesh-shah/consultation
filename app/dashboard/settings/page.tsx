@@ -2,6 +2,8 @@ import { getSession } from "@/lib/session";
 import { getClinic } from "@/lib/db/clinics";
 import { listClinicStaff } from "@/lib/db/staff";
 import AddStaffForm from "@/components/settings/AddStaffForm";
+import { createClient } from "@/lib/supabase/server";
+import AuthenticatorDevices from "@/components/settings/AuthenticatorDevices";
 import StaffList from "@/components/settings/StaffList";
 
 export default async function SettingsPage() {
@@ -23,11 +25,24 @@ export default async function SettingsPage() {
   }
 
   const staff = await listClinicStaff(session.clinicId);
+  const { data: factors } = await createClient().auth.mfa.listFactors();
+  const devices = (factors?.totp ?? []).map((f) => ({
+    id: f.id,
+    name: f.friendly_name ?? "Authenticator",
+    addedAt: f.created_at,
+  }));
 
   return (
     <div className="mx-auto max-w-2xl">
       <p className="text-xs font-medium uppercase tracking-wide text-brown-400">Settings</p>
       <h1 className="mt-1 font-display text-2xl text-brown-900">{clinic?.name || "Your Clinic"}</h1>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-brown-400">
+          Two-step verification devices
+        </h2>
+        <AuthenticatorDevices devices={devices} />
+      </div>
 
       <div className="mt-8">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-brown-400">Staff</h2>

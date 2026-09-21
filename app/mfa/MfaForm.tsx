@@ -112,7 +112,7 @@ export default function MfaForm({ factorId: existingFactorId }: { factorId: stri
             </button>
             {!isSetup && (
               <p className="text-xs text-brown-400">
-                Lost your phone? Contact Loupe support to reset your two-step verification.
+                Lost your phone? Use your second device if you added one. Otherwise, contact Loupe support to reset your two-step verification.
               </p>
             )}
           </form>
