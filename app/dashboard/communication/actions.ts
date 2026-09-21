@@ -1,5 +1,6 @@
 "use server";
 
+import { recordAuditEvent } from "@/lib/db/auditLog";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import {
@@ -33,6 +34,7 @@ export async function connectWhatsAppAction(
 
   try {
     await saveWhatsAppConnection(session.clinicId, input);
+    await recordAuditEvent(session, { action: "whatsapp.connect", targetType: "WhatsAppConnection", targetId: session.clinicId });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong saving your connection." };
   }
@@ -44,6 +46,7 @@ export async function connectWhatsAppAction(
 export async function disconnectWhatsAppAction(): Promise<{ error?: string }> {
   const session = await requireDoctor();
   await disconnectWhatsApp(session.clinicId);
+  await recordAuditEvent(session, { action: "whatsapp.disconnect", targetType: "WhatsAppConnection", targetId: session.clinicId });
   revalidatePath("/dashboard/communication");
   return {};
 }
@@ -84,7 +87,8 @@ export async function sendTestMessageAction(
 export async function createTemplateAction(input: TemplateInput): Promise<{ error?: string }> {
   const session = await requireDoctor();
   if (!input.name.trim()) return { error: "Template name is required." };
-  await createTemplate(session.clinicId, input);
+  const templateId = await createTemplate(session.clinicId, input);
+  await recordAuditEvent(session, { action: "template.create", targetType: "MessageTemplate", targetId: templateId });
   revalidatePath("/dashboard/communication");
   return {};
 }
@@ -93,6 +97,7 @@ export async function updateTemplateAction(id: string, input: TemplateInput): Pr
   const session = await requireDoctor();
   if (!input.name.trim()) return { error: "Template name is required." };
   await updateTemplate(session.clinicId, id, input);
+  await recordAuditEvent(session, { action: "template.update", targetType: "MessageTemplate", targetId: id });
   revalidatePath("/dashboard/communication");
   return {};
 }
@@ -100,6 +105,7 @@ export async function updateTemplateAction(id: string, input: TemplateInput): Pr
 export async function deleteTemplateAction(id: string): Promise<{ error?: string }> {
   const session = await requireDoctor();
   await deleteTemplate(session.clinicId, id);
+  await recordAuditEvent(session, { action: "template.delete", targetType: "MessageTemplate", targetId: id });
   revalidatePath("/dashboard/communication");
   return {};
 }

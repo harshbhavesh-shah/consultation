@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { getPatientById } from "@/lib/db/patients";
+import { recordAuditEvent } from "@/lib/db/auditLog";
 import { getAppointmentsByPatientId } from "@/lib/db/appointments";
 import { formatTo12Hour } from "@/lib/slots";
 import { STATUS_STYLES, statusLabel } from "@/components/appointments/statusStyles";
@@ -30,6 +31,8 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
   if (!patient) {
     return <p className="text-sm text-brown-600">Patient not found.</p>;
   }
+
+  await recordAuditEvent(session, { action: "patient.view", targetType: "Patient", targetId: patient.id });
 
   // Already sorted newest first by getAppointmentsByPatientId.
   const visits = await getAppointmentsByPatientId(session.clinicId, params.id);

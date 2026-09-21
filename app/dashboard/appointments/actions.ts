@@ -16,6 +16,7 @@ import {
 import { reassignDailyTokens, countStillWaitingAhead } from "@/lib/tokenQueue";
 import { findPatientsByPhone, createPatient } from "@/lib/db/patients";
 import { computeCallBackDueDate } from "@/lib/followups";
+import { recordAuditEvent } from "@/lib/db/auditLog";
 import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 import type { Appointment } from "@/types";
 
@@ -89,6 +90,12 @@ export async function updateAppointmentFieldAction(
   }
 
   await updateAppointment(session.clinicId, id, patch);
+  await recordAuditEvent(session, {
+    action: "appointment.update",
+    targetType: "Appointment",
+    targetId: id,
+    metadata: { fields: Object.keys(patch) },
+  });
   if ("payment" in patch || "status" in patch) {
     await maybeSendReceipt(session.clinicId, id);
   }
@@ -109,6 +116,11 @@ export async function toggleVisitedAction(id: string, visited: boolean): Promise
   }
 
   await updateAppointment(session.clinicId, id, { status: visited ? "Visited" : "Booked" });
+  await recordAuditEvent(session, {
+    action: visited ? "appointment.mark_visited" : "appointment.reopen",
+    targetType: "Appointment",
+    targetId: id,
+  });
   if (visited) await maybeSendReceipt(session.clinicId, id);
   revalidatePath("/dashboard/appointments");
   return {};
@@ -119,6 +131,7 @@ export async function deleteAppointmentAction(id: string, date: string): Promise
   if (session.role !== "doctor") return { error: "Only a doctor can delete an appointment." };
 
   await deleteAppointmentDb(session.clinicId, id);
+  await recordAuditEvent(session, { action: "appointment.delete", targetType: "Appointment", targetId: id });
   await reassignDailyTokens(session.clinicId, date);
   revalidatePath("/dashboard/appointments");
   return {};
@@ -165,6 +178,7 @@ export async function createWalkInAction(input: WalkInInput): Promise<WalkInResu
         gender: input.gender,
       });
       patientId = created.id;
+      await recordAuditEvent(session, { action: "patient.create", targetType: "Patient", targetId: created.id });
     }
   }
 
@@ -192,6 +206,8 @@ export async function createWalkInAction(input: WalkInInput): Promise<WalkInResu
     call_back_completed_at: null,
     createdBy: session.uid,
   });
+
+  await recordAuditEvent(session, { action: "appointment.create", targetType: "Appointment", targetId: id });
 
   const entries = await reassignDailyTokens(session.clinicId, input.date);
   const ahead = countStillWaitingAhead(entries, id);
@@ -227,6 +243,7 @@ export async function editAppointmentAction(input: EditWalkInInput): Promise<Wal
     payment_type: input.payment_type,
     reference: input.reference,
   });
+  await recordAuditEvent(session, { action: "appointment.edit", targetType: "Appointment", targetId: input.id });
 
   // If the date changed, both the old and new day's queues need
   // renumbering to close the gap left behind and fit the arrival in.

@@ -3,6 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db/client";
+import { recordAuditEvent } from "@/lib/db/auditLog";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { UserRole } from "@/types";
 
@@ -52,6 +53,12 @@ export async function addStaffAction(input: {
     await prisma.staff.create({
       data: { id: userData.user.id, clinicId: session.clinicId, name, email, role: input.role },
     });
+    await recordAuditEvent(session, {
+      action: "staff.add",
+      targetType: "Staff",
+      targetId: userData.user.id,
+      metadata: { role: input.role },
+    });
   } catch (err) {
     console.error("Failed to add staff:", err);
     return { error: "Something went wrong. Please try again." };
@@ -74,6 +81,7 @@ export async function removeStaffAction(uid: string): Promise<{ error?: string }
 
     await supabaseAdmin().auth.admin.deleteUser(uid);
     await prisma.staff.deleteMany({ where: { id: uid, clinicId: session.clinicId } });
+    await recordAuditEvent(session, { action: "staff.remove", targetType: "Staff", targetId: uid });
   } catch (err) {
     console.error("Failed to remove staff:", err);
     return { error: "Something went wrong. Please try again." };
