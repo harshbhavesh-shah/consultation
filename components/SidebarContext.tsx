@@ -1,9 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-const STORAGE_KEY = "sidebar-collapsed";
-const SESSION_AUTO_COLLAPSE_KEY = "sidebar-auto-collapsed";
+const SCHEDULE_PATH = "/dashboard/appointments";
 
 interface SidebarContextValue {
   collapsed: boolean; // the effective state to render
@@ -14,32 +14,24 @@ interface SidebarContextValue {
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [userPreferred, setUserPreferred] = useState(false);
+  const pathname = usePathname();
+  const [manual, setManual] = useState<boolean | null>(null);
   const [override, setOverride] = useState<boolean | null>(null);
 
+  // Open by default everywhere except the schedule page. A manual toggle
+  // only sticks for the current page, so each page starts from its default.
   useEffect(() => {
-    // Collapse automatically the first time the dashboard is entered each
-    // browser session, freeing up table width right away — the manual
-    // toggle below still works normally afterward, this only nudges the
-    // starting state once per session rather than locking it collapsed.
-    if (sessionStorage.getItem(SESSION_AUTO_COLLAPSE_KEY)) {
-      if (localStorage.getItem(STORAGE_KEY) === "true") setUserPreferred(true);
-      return;
-    }
-    sessionStorage.setItem(SESSION_AUTO_COLLAPSE_KEY, "true");
-    setUserPreferred(true);
-    localStorage.setItem(STORAGE_KEY, "true");
-  }, []);
+    setManual(null);
+  }, [pathname]);
+
+  const isSchedule = pathname === SCHEDULE_PATH;
+  const base = manual !== null ? manual : isSchedule;
 
   function toggleUserPreference() {
-    setUserPreferred((prev) => {
-      const next = !prev;
-      localStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
+    setManual(!base);
   }
 
-  const collapsed = override !== null ? override : userPreferred;
+  const collapsed = override !== null ? override : base;
 
   return (
     <SidebarContext.Provider

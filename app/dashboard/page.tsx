@@ -35,9 +35,12 @@ export default async function DashboardPage() {
 
   const [appointments, staff, attendance] = await Promise.all([
     getAppointmentsForDate(session.clinicId, today),
-    isDoctor ? listClinicStaff(session.clinicId) : Promise.resolve([]),
+    listClinicStaff(session.clinicId),
     isDoctor ? getAttendanceForDate(session.clinicId, today) : Promise.resolve([]),
   ]);
+
+  const me = staff.find((s) => s.uid === session.uid);
+  const doctor = isDoctor ? me : undefined;
 
   const seen = appointments.filter((a) => a.status === "Visited");
   const waiting = appointments.filter((a) => a.status === "Booked");
@@ -55,7 +58,8 @@ export default async function DashboardPage() {
     month: "long",
   });
 
-  const nameLabel = session.email ? session.email.split("@")[0] : "";
+  const surname = doctor?.name.trim().split(/\s+/).pop();
+  const nameLabel = surname ? `Dr. ${surname}` : "";
   const subtitle =
     current
       ? `${waiting.length} patient${waiting.length === 1 ? " is" : "s are"} waiting. Next is ${current.patient_name}.`
