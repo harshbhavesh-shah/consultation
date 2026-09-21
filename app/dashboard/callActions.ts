@@ -38,17 +38,22 @@ export async function callInNextPatientAction(
     return { error: "The queue has changed — refresh to see who's next." };
   }
 
-  const staff = await listClinicStaff(session.clinicId);
-  const me = staff.find((s) => s.uid === session.uid);
-
-  const { deduped } = await createPatientCall({
-    clinicId: session.clinicId,
-    appointmentId: next.id,
-    patientName: next.patient_name,
-    tokenNumber: next.token_number,
-    calledBy: session.uid,
-    calledByName: doctorLabel(me?.name) || "The doctor",
-  });
+  let deduped: boolean;
+  try {
+    const staff = await listClinicStaff(session.clinicId);
+    const me = staff.find((s) => s.uid === session.uid);
+    ({ deduped } = await createPatientCall({
+      clinicId: session.clinicId,
+      appointmentId: next.id,
+      patientName: next.patient_name,
+      tokenNumber: next.token_number,
+      calledBy: session.uid,
+      calledByName: doctorLabel(me?.name) || "The doctor",
+    }));
+  } catch (err) {
+    console.error("Failed to create patient call:", err);
+    return { error: "Couldn't send the call. Please try again." };
+  }
 
   if (!deduped) {
     // Ids only — never the patient's name — like every other audit event.

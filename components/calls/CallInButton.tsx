@@ -44,7 +44,7 @@ export default function CallInButton({
       timer.current = setTimeout(() => setState("idle"), CALLED_STATE_MS);
     } catch (err) {
       console.error(err);
-      setError("Couldn't reach reception. Check your connection and try again.");
+      setError("Couldn't send the call. Check your connection and try again.");
       setState("idle");
     }
   }
