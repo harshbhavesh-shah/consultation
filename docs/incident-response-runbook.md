@@ -23,7 +23,7 @@ Unauthorised access to the database or a staff account; a lost/stolen device
 with an active session; data exposed by a bug or misconfigured permission
 (including RLS — see `scripts/verifyTenantIsolation.mjs`); ransomware/malware
 touching anything that holds patient data; a vendor (Supabase, Vercel, Meta,
-Cloudflare) reporting a breach that could include our data.
+Cloudflare, Resend) reporting a breach that could include our data.
 
 ## Step 1 — Contain
 
@@ -36,7 +36,8 @@ Cloudflare) reporting a breach that could include our data.
    `DATABASE_URL` and `DIRECT_URL` in Vercel and redeploy.
 3. **Key/secret leaked:** rotate it at the source and in Vercel, then redeploy:
    `SUPABASE_SECRET_KEY` (Supabase → API Keys), `CRON_SECRET`,
-   `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `TURNSTILE_SECRET_KEY`.
+   `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `TURNSTILE_SECRET_KEY`, `RESEND_KEY_ID` (Resend dashboard),
+   `SEND_EMAIL_HOOK_SECRET` (regenerate in Supabase → Authentication → Hooks, then update Vercel).
    - **`ENCRYPTION_KEY`** (encrypts WhatsApp credentials): rotating it makes
      stored credentials unreadable. Instead, treat the affected clinics'
      **Meta access tokens and app secrets as compromised** — have them

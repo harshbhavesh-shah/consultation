@@ -7,12 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 // the session cookies), then sends them on — for a new clinic owner that's
 // /dashboard, which routes them into two-step setup at /mfa.
 //
-// Supabase Dashboard → Authentication → Email Templates → "Confirm signup"
-// must link here:
-//   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard">
-// (token_hash works from any device/browser; the default template's PKCE
-// `code` link only works in the browser that started the signup — that
-// case is handled below as a fallback.)
+// The link is built by app/api/auth/send-email (the Supabase Send Email hook)
+// as /auth/confirm?token_hash=…&type=signup&next=/dashboard, so it works from
+// any browser or device. The `code` (PKCE) branch below is only a fallback
+// for when the hook is switched off and Supabase's default template is used.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const tokenHash = searchParams.get("token_hash");

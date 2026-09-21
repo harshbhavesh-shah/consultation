@@ -43,7 +43,7 @@ const SECTIONS: Section[] = [
     heading: "Who else can see it",
     body: [
       "Only staff of the clinic you visited can see your records. We do not sell your information or use it for advertising.",
-      "To run the service we use these providers, who process data on our behalf: Supabase (database and sign-in), Vercel (hosting), Meta's WhatsApp Business platform (messages), and Cloudflare (spam protection on public forms).",
+      "To run the service we use these providers, who process data on our behalf: Supabase (database and sign-in), Vercel (hosting), Resend (sign-up confirmation emails), Meta's WhatsApp Business platform (messages), and Cloudflare (spam protection on public forms).",
       "We may disclose information where the law requires it.",
     ],
   },
