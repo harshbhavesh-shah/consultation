@@ -161,7 +161,9 @@ export async function updateAppointment(clinicId: string, id: string, patch: Par
   const existing = await prisma.appointment.findUnique({ where: { id } });
   if (!existing || existing.clinicId !== clinicId) throw new Error("Appointment not found");
 
-  await prisma.appointment.update({ where: { id }, data: toPrismaUpdateData(patch) });
+  // updateMany/deleteMany so the clinic scope is part of the write itself,
+  // not only of the check above it.
+  await prisma.appointment.updateMany({ where: { id, clinicId }, data: toPrismaUpdateData(patch) });
   revalidateTag(appointmentsTag(clinicId));
 }
 
@@ -169,7 +171,7 @@ export async function deleteAppointment(clinicId: string, id: string): Promise<v
   const existing = await prisma.appointment.findUnique({ where: { id } });
   if (!existing || existing.clinicId !== clinicId) throw new Error("Appointment not found");
 
-  await prisma.appointment.delete({ where: { id } });
+  await prisma.appointment.deleteMany({ where: { id, clinicId } });
   revalidateTag(appointmentsTag(clinicId));
 }
 

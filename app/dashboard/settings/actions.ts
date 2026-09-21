@@ -67,8 +67,13 @@ export async function removeStaffAction(uid: string): Promise<{ error?: string }
   if (uid === session.uid) return { error: "You can't remove your own account." };
 
   try {
+    // Tenant check: without this, a doctor at one clinic could delete any
+    // other clinic's staff account by uid.
+    const target = await prisma.staff.findFirst({ where: { id: uid, clinicId: session.clinicId } });
+    if (!target) return { error: "Staff member not found." };
+
     await supabaseAdmin().auth.admin.deleteUser(uid);
-    await prisma.staff.delete({ where: { id: uid } }).catch(() => {});
+    await prisma.staff.deleteMany({ where: { id: uid, clinicId: session.clinicId } });
   } catch (err) {
     console.error("Failed to remove staff:", err);
     return { error: "Something went wrong. Please try again." };

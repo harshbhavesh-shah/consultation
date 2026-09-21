@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { listConnectedClinicIds } from "@/lib/db/whatsappConnections";
 import { getClinic } from "@/lib/db/clinics";
@@ -8,8 +9,7 @@ import { sendAutomatedTemplate } from "@/lib/whatsapp/automatedSends";
 
 // Runs once a day (see vercel.json) across every WhatsApp-connected clinic.
 // Vercel Cron automatically sends `Authorization: Bearer ${CRON_SECRET}`
-// when that env var is set on the project — same secret-header pattern as
-// app/api/admin/reassign-tokens, just via the header Vercel itself adds.
+// when that env var is set on the project.
 // On another host, point an external scheduler at this URL with the same
 // header once a day instead.
 //
@@ -38,9 +38,16 @@ function todayStr(offsetDays = 0): string {
 // indexed read (see getAppointmentsInRange).
 const LOOKBACK_DAYS = 120;
 
+function isAuthorizedCron(authHeader: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !authHeader) return false;
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const actual = Buffer.from(authHeader);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCron(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

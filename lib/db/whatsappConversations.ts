@@ -73,7 +73,7 @@ export async function getConversationMessages(clinicId: string, conversationId: 
   if (!conversation) return []; // tenant isolation — refuse to leak another clinic's thread
 
   const rows = await prisma.whatsAppMessage.findMany({
-    where: { conversationId },
+    where: { conversationId, clinicId },
     orderBy: { createdAt: "asc" },
   });
   return rows.map(toMessage);
@@ -82,7 +82,7 @@ export async function getConversationMessages(clinicId: string, conversationId: 
 export async function markConversationRead(clinicId: string, conversationId: string): Promise<void> {
   const conversation = await getConversation(clinicId, conversationId);
   if (!conversation) return;
-  await prisma.whatsAppConversation.update({ where: { id: conversationId }, data: { unreadCount: 0 } });
+  await prisma.whatsAppConversation.updateMany({ where: { id: conversationId, clinicId }, data: { unreadCount: 0 } });
   revalidateTag(conversationTag(clinicId));
 }
 

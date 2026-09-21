@@ -69,13 +69,13 @@ export async function createTemplate(clinicId: string, input: TemplateInput): Pr
 export async function updateTemplate(clinicId: string, id: string, input: TemplateInput): Promise<void> {
   const existing = await prisma.messageTemplate.findUnique({ where: { id } });
   if (!existing || existing.clinicId !== clinicId) throw new Error("Template not found");
-  await prisma.messageTemplate.update({ where: { id }, data: input });
+  await prisma.messageTemplate.updateMany({ where: { id, clinicId }, data: input });
   revalidateTag(templatesTag(clinicId));
 }
 
 export async function deleteTemplate(clinicId: string, id: string): Promise<void> {
   const existing = await prisma.messageTemplate.findUnique({ where: { id } });
   if (!existing || existing.clinicId !== clinicId) throw new Error("Template not found");
-  await prisma.messageTemplate.delete({ where: { id } });
+  await prisma.messageTemplate.deleteMany({ where: { id, clinicId } });
   revalidateTag(templatesTag(clinicId));
 }
