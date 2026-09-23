@@ -10,7 +10,7 @@ import type { Appointment } from "@/types";
 
 // Appointment documents already carry the patient's name/phone/address/age/
 // gender directly (denormalized at booking time — see types/index.ts), so
-// unlike RadianceLaser's PatientMiniPanel this never needs a separate
+// unlike Lumière by Radiance's PatientMiniPanel this never needs a separate
 // Patient fetch/join to show those fields. Only the "View Full Patient
 // Record" link needs patientId, and that's nullable (online bookings and
 // some legacy-synced appointments aren't linked to a Patient record).

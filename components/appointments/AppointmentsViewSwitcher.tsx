@@ -24,7 +24,7 @@ import {
 import { getAppointmentsInRangeAction } from "@/app/dashboard/appointments/actions";
 import type { Appointment, UserRole } from "@/types";
 
-// Same timing as RadianceLaser's panel slide/sidebar-collapse, so it reads
+// Same timing as Lumière by Radiance's panel slide/sidebar-collapse, so it reads
 // as one coordinated motion rather than two things racing each other.
 const PANEL_TRANSITION_MS = 300;
 
@@ -85,7 +85,7 @@ export default function AppointmentsViewSwitcher({
     };
   }, [viewMode, calendarMode, anchor]);
 
-  // Same bug fix as RadianceLaser's AppointmentsClient: navigating away
+  // Same bug fix as Lumière by Radiance's AppointmentsClient: navigating away
   // while the panel is open would otherwise leave the sidebar stuck
   // collapsed, since the temporary override is only ever cleared by
   // closePanel() — clear it unconditionally on unmount too.

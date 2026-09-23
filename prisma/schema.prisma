@@ -509,7 +509,7 @@ model PatientCall {
 }
 
 // A clinic's configurable automated follow-up for a missed appointment
-// (ported from RadianceLaser). Each fires `delayHours` after the
+// (ported from Lumière by Radiance). Each fires `delayHours` after the
 // appointment's own scheduled time, once the appointment has been flagged a
 // no-show, through the linked message template. Deleting the template
 // removes the follow-ups that use it.

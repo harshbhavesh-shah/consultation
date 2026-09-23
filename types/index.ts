@@ -209,7 +209,7 @@ export interface WhatsAppMessage {
   createdAt: number;
 }
 
-// --- Patient retention (ported from RadianceLaser) ---
+// --- Patient retention (ported from Lumière by Radiance) ---
 
 export type NoShowFollowUpKind = "survey" | "incentive" | "reminder" | "custom";
 

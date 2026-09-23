@@ -1,4 +1,4 @@
--- Patient retention (ported from RadianceLaser): a No-show appointment
+-- Patient retention (ported from Lumière by Radiance): a No-show appointment
 -- status, configurable no-show follow-ups, a send log, and the survey.
 
 -- New status. Nothing in this migration uses the value, so it is safe to add
