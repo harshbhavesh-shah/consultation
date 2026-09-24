@@ -14,7 +14,7 @@ const manrope = Manrope({ subsets: ["latin"], weight: ["400", "500", "600", "700
 
 export default function LandingPage() {
   return (
-    <div className={`flex min-h-screen flex-col overflow-hidden bg-canvas text-brown-900 ${manrope.className}`}>
+    <div className={`flex min-h-screen flex-col overflow-hidden bg-[#F1F4EE] text-brown-900 ${manrope.className}`}>
       <Hero />
       <main>
         <DayAtClinic />

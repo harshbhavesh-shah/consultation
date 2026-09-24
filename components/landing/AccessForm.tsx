@@ -24,10 +24,11 @@ export default function AccessForm() {
   return (
     <section id="access" className="relative flex items-center justify-center overflow-hidden px-6 py-24 md:px-10">
       <div className="pointer-events-none absolute -left-32 -top-28 h-[500px] w-[500px] rounded-full bg-gold-100 opacity-90 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-orange-100 opacity-80 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-[#D8D2F0] opacity-80 blur-3xl" />
       <div className="pointer-events-none absolute -left-16 bottom-0 h-[420px] w-[420px] rounded-full bg-amber-100 opacity-70 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-[460px] w-[460px] rounded-full bg-beige-200 opacity-90 blur-3xl" />
-      <DoodlePattern id="access-doodles" opacity={0.5} />
+      <DoodlePattern id="access-doodles" opacity={0.5} variant="violet" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[100px] bg-gradient-to-b from-[#F1F4EE] to-transparent lg:h-[180px]" />
 
       <div className="relative z-[2] w-full max-w-[480px] rounded-2xl border border-beige-300 bg-surface p-8 shadow-card sm:p-10">
         <div className="flex flex-col gap-2">

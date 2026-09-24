@@ -9,7 +9,7 @@ export default function Hero() {
   return (
     <header className="relative overflow-hidden">
       <div className="pointer-events-none absolute -left-32 -top-40 h-[500px] w-[500px] rounded-full bg-gold-100 opacity-90 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 -top-36 h-[420px] w-[420px] rounded-full bg-orange-100 opacity-80 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 -top-36 h-[420px] w-[420px] rounded-full bg-[#D8D2F0] opacity-80 blur-3xl" />
       <div className="pointer-events-none absolute -left-16 bottom-0 h-[420px] w-[420px] rounded-full bg-amber-100 opacity-70 blur-3xl" />
       <div className="pointer-events-none absolute -right-16 bottom-0 h-[460px] w-[460px] rounded-full bg-beige-200 opacity-90 blur-3xl" />
       {/* Desktop (lg+): doodles are masked clear of the text column in the
@@ -28,7 +28,7 @@ export default function Hero() {
             maskImage: "linear-gradient(to bottom, transparent 0, transparent 88px, #000 200px)",
           }}
         >
-          <DoodlePattern id="hero-doodles" opacity={0.5} />
+          <DoodlePattern id="hero-doodles" opacity={0.5} variant="violet" />
         </div>
       </div>
       {/* Below lg the hero stacks to one column, so instead of a horizontal
@@ -41,9 +41,9 @@ export default function Hero() {
           maskImage: "linear-gradient(to bottom, transparent 0, transparent 900px, #000 1080px)",
         }}
       >
-        <DoodlePattern id="hero-doodles-mobile" opacity={0.5} />
+        <DoodlePattern id="hero-doodles-mobile" opacity={0.5} variant="violet" />
       </div>
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-canvas" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#F1F4EE]" />
 
       <LandingNav />
 

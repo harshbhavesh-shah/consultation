@@ -154,11 +154,11 @@ export default function DayAtClinic() {
 
       {/* 11:20 AM — a finished visit becomes a locked record */}
       <article className="grid grid-cols-1 items-center gap-12 py-8 lg:grid-cols-2 lg:gap-16">
-        <SceneIntro time="11:20" period="AM" accent="text-red-700" title="A finished visit becomes a locked record.">
+        <SceneIntro time="11:20" period="AM" accent="text-[#6B5FA0]" title="A finished visit becomes a locked record.">
           The doctor records the diagnosis, sets the follow-up and the call-back, and marks the visit done. From
           then on the record is locked. Reception can still read it, and only the doctor can change it.
         </SceneIntro>
-        <SceneVisual bg="bg-red-100" height="h-[560px] sm:h-[480px]">
+        <SceneVisual bg="bg-[#E7E3F5]" height="h-[560px] sm:h-[480px]">
           {/* Below sm, the floating tooltip reflows in-line below the
               card instead of overlapping it (it has no room to float
               there); at sm+ it's absolutely positioned as designed. */}

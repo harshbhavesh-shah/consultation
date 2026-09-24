@@ -17,6 +17,9 @@ const COLORS = {
   coral: "#F87171", // red-400
 } as const;
 
+// Landing page variant: the coral hue is swapped for violet.
+const VIOLET = "#8B7EC8";
+
 type Color = keyof typeof COLORS;
 
 interface IconDef {
@@ -173,11 +176,14 @@ export default function DoodlePattern({
   id,
   opacity = 0.45,
   className = "",
+  variant = "coral",
 }: {
   id: string;
   opacity?: number;
   className?: string;
+  variant?: "coral" | "violet";
 }) {
+  const palette = variant === "violet" ? { ...COLORS, coral: VIOLET } : COLORS;
   return (
     <svg aria-hidden="true" className={`pointer-events-none absolute inset-0 h-full w-full ${className}`}>
       <defs>
@@ -188,7 +194,7 @@ export default function DoodlePattern({
                 key={i}
                 transform={icon.transform}
                 fill="none"
-                stroke={COLORS[icon.color]}
+                stroke={palette[icon.color]}
                 strokeWidth={icon.strokeWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -205,7 +211,7 @@ export default function DoodlePattern({
               </g>
             ))}
             {DOTS.map((dot, i) => (
-              <circle key={i} cx={dot.cx} cy={dot.cy} r={2.2} fill={COLORS[dot.color]} />
+              <circle key={i} cx={dot.cx} cy={dot.cy} r={2.2} fill={palette[dot.color]} />
             ))}
           </g>
         </pattern>

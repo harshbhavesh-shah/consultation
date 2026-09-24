@@ -23,7 +23,7 @@ export default function WorkspaceSetup() {
         </p>
       </div>
 
-      <div className="flex h-[400px] w-full max-w-xl items-center justify-center rounded-[28px] bg-red-100">
+      <div className="flex h-[400px] w-full max-w-xl items-center justify-center rounded-[28px] bg-[#E3E8EE]">
         <div className="w-[400px] max-w-[85%] rounded-xl border border-beige-300 bg-surface p-7 shadow-card">
           <div className="flex flex-col gap-4">
             <div className="flex items-baseline justify-between">
