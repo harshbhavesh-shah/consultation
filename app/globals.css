@@ -120,21 +120,3 @@
   }
 }
 
-/* Printable documents render inside a modal overlay — without this,
-   window.print() would print the whole app behind it too. Any element
-   marked .print-area becomes the only thing that prints. */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .print-area,
-  .print-area * {
-    visibility: visible;
-  }
-  .print-area {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    margin: 0;
-  }
-}
