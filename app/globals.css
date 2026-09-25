@@ -8,6 +8,20 @@
   }
 }
 
+/* Lets the dashboard shell (fixed-height, scrolling main) flow onto multiple
+   printed pages for prescriptions and receipts. */
+@media print {
+  .print-reset {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}
+
 @layer utilities {
   /* Bars/columns grow up from their baseline on mount — the bar's own
      inline height/width style sets the true target size, this just scales

@@ -5,7 +5,8 @@ import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db/client";
 import { recordAuditEvent } from "@/lib/db/auditLog";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { UserRole } from "@/types";
+import { updateClinicLetterhead } from "@/lib/db/clinics";
+import type { ClinicLetterhead, UserRole } from "@/types";
 
 async function requireDoctor() {
   const session = await getSession();
@@ -88,6 +89,23 @@ export async function removeStaffAction(uid: string): Promise<{ error?: string }
   }
 
   revalidateTag(`staff-${session.clinicId}`);
+  revalidatePath("/dashboard/settings");
+  return {};
+}
+
+const LETTERHEAD_MAX = 200;
+
+export async function updateLetterheadAction(input: ClinicLetterhead): Promise<{ error?: string }> {
+  const session = await requireDoctor();
+  const clean = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, LETTERHEAD_MAX) : "");
+  await updateClinicLetterhead(session.clinicId, {
+    address: clean(input.address),
+    phone: clean(input.phone),
+    doctorName: clean(input.doctorName),
+    doctorQualifications: clean(input.doctorQualifications),
+    registrationNo: clean(input.registrationNo),
+  });
+  await recordAuditEvent(session, { action: "clinic.update_letterhead", targetType: "Clinic", targetId: session.clinicId });
   revalidatePath("/dashboard/settings");
   return {};
 }

@@ -19,13 +19,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen flex-col overflow-hidden bg-canvas">
-        <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-          <Sidebar clinicName={clinicName} session={session} />
-          <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">{children}</main>
+      {/* `print-reset` lets prescriptions/receipts print across pages: see globals.css. */}
+      <div className="print-reset flex h-screen flex-col overflow-hidden bg-canvas">
+        <div className="print-reset flex flex-1 flex-col overflow-hidden md:flex-row">
+          <div className="contents print:hidden">
+            <Sidebar clinicName={clinicName} session={session} />
+          </div>
+          <main className="print-reset flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 print:p-0">{children}</main>
         </div>
         {/* Reception only: the doctor's "Call in" pops up here, on any page. */}
-        {session.role === "reception" && <CallInAlerts clinicId={session.clinicId} />}
+        {session.role === "reception" && (
+          <div className="contents print:hidden">
+            <CallInAlerts clinicId={session.clinicId} />
+          </div>
+        )}
       </div>
     </SidebarProvider>
   );

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { FileText, Lock, Receipt } from "lucide-react";
 import { formatTo12Hour, minutesPastSlot } from "@/lib/slots";
 import { computeFollowUpDueDate, computeCallBackDueDate } from "@/lib/followups";
 import {
@@ -176,6 +176,35 @@ export default function AppointmentDetailPanel({
                 : undefined
             }
           />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-brown-400">Documents</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href={`/dashboard/prescriptions/${appointment.id}`}
+            prefetch={false}
+            className="flex h-11 items-center justify-center gap-2 rounded-lg border border-beige-300 text-sm font-medium text-brown-900 transition-colors hover:border-gold-500 hover:text-gold-600"
+          >
+            <FileText size={16} />
+            {role === "doctor" ? "Prescription" : "View Rx"}
+          </Link>
+          {typeof appointment.payment === "number" && appointment.payment > 0 ? (
+            <Link
+              href={`/dashboard/receipts/${appointment.id}`}
+              prefetch={false}
+              className="flex h-11 items-center justify-center gap-2 rounded-lg border border-beige-300 text-sm font-medium text-brown-900 transition-colors hover:border-gold-500 hover:text-gold-600"
+            >
+              <Receipt size={16} />
+              Receipt
+            </Link>
+          ) : (
+            <span className="flex h-11 items-center justify-center gap-2 rounded-lg border border-beige-200 text-sm text-brown-400">
+              <Receipt size={16} />
+              No payment yet
+            </span>
+          )}
         </div>
       </div>
 

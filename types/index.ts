@@ -7,10 +7,48 @@ export interface Session {
   role: UserRole;
 }
 
-export interface Clinic {
+export interface ClinicLetterhead {
+  address: string;
+  phone: string;
+  doctorName: string;
+  doctorQualifications: string;
+  registrationNo: string;
+}
+
+export interface Clinic extends ClinicLetterhead {
   id: string;
   name: string;
   createdAt: number;
+}
+
+export interface Medication {
+  name: string;
+  dose: string; // e.g. "0.05% cream", "100 mg"
+  frequency: string; // e.g. "Twice daily", "At night"
+  duration: string; // e.g. "2 weeks"
+  instructions: string; // e.g. "Apply a thin layer, avoid eyes"
+}
+
+export interface Prescription {
+  id: string;
+  appointmentId: string;
+  medications: Medication[];
+  advice: string;
+  updatedAt: number;
+}
+
+export interface PrescriptionTemplate {
+  id: string;
+  name: string;
+  medications: Medication[];
+  advice: string;
+}
+
+export interface Receipt {
+  id: string;
+  appointmentId: string;
+  number: number;
+  issuedAt: number;
 }
 
 export interface Staff {

@@ -178,6 +178,24 @@ function VisitRow({ visit, today, isLast }: { visit: Appointment; today: string;
           >
             {isToday ? "Open in appointments" : "View record"}
           </Link>
+          <div className="flex gap-3 text-sm">
+            <Link
+              href={`/dashboard/prescriptions/${visit.id}`}
+              prefetch={false}
+              className="text-brown-600 underline decoration-1 underline-offset-4 hover:text-gold-600"
+            >
+              Rx
+            </Link>
+            {visit.payment !== "" && visit.payment > 0 && (
+              <Link
+                href={`/dashboard/receipts/${visit.id}`}
+                prefetch={false}
+                className="text-brown-600 underline decoration-1 underline-offset-4 hover:text-gold-600"
+              >
+                Receipt
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </div>

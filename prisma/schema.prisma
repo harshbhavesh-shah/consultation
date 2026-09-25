@@ -159,6 +159,14 @@ model Clinic {
   name      String
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Letterhead printed on prescriptions and receipts. All optional: a
+  // blank field is simply omitted from the printout.
+  address              String @default("")
+  phone                String @default("")
+  doctorName           String @default("") @map("doctor_name")
+  doctorQualifications String @default("") @map("doctor_qualifications")
+  registrationNo       String @default("") @map("registration_no")
+
   staff              Staff[]
   patients           Patient[]
   appointments       Appointment[]
@@ -173,6 +181,9 @@ model Clinic {
   noShowFollowUps    NoShowFollowUp[]
   noShowMessageLogs  NoShowMessageLog[]
   noShowSurveys      NoShowSurveyResponse[]
+  prescriptions      Prescription[]
+  receipts           Receipt[]
+  rxTemplates        PrescriptionTemplate[]
 
   @@map("clinics")
 }
@@ -284,6 +295,8 @@ model Appointment {
 
   noShowMessages NoShowMessageLog[]
   noShowSurvey   NoShowSurveyResponse?
+  prescription   Prescription?
+  receipt        Receipt?
 
   @@index([clinicId, appointmentDate, appointmentTime])
   @@index([clinicId, appointmentDate])
@@ -577,4 +590,63 @@ model NoShowSurveyResponse {
 
   @@index([clinicId, respondedAt(sort: Desc)])
   @@map("no_show_survey_responses")
+}
+
+// One prescription per appointment, written by the doctor. `medications` is
+// an ordered array of { name, dose, frequency, duration, instructions }
+// (validated in lib/db/prescriptions.ts) — it's only ever read and printed
+// as a whole, so a JSON column beats a child table. Deleted with the
+// appointment (patient erasure included).
+model Prescription {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clinicId      String   @map("clinic_id") @db.Uuid
+  appointmentId String   @unique @map("appointment_id") @db.Uuid
+  medications   Json     @default("[]")
+  advice        String   @default("")
+  createdBy     String   @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  clinic      Clinic      @relation(fields: [clinicId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId, createdAt(sort: Desc)])
+  @@map("prescriptions")
+}
+
+// Only holds the receipt NUMBER (sequential per clinic, allocated the first
+// time a receipt is opened). Amount, payment mode and reference are always
+// read live from the appointment, so a receipt can never disagree with the
+// visit record.
+model Receipt {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clinicId      String   @map("clinic_id") @db.Uuid
+  appointmentId String   @unique @map("appointment_id") @db.Uuid
+  number        Int
+  issuedAt      DateTime @default(now()) @map("issued_at")
+  issuedBy      String   @map("issued_by") @db.Uuid
+
+  clinic      Clinic      @relation(fields: [clinicId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@unique([clinicId, number])
+  @@map("receipts")
+}
+
+// A doctor's saved starting point ("Acne starter", "Eczema flare") that
+// pre-fills the prescription editor. Same medications shape as Prescription.
+model PrescriptionTemplate {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clinicId    String   @map("clinic_id") @db.Uuid
+  name        String
+  medications Json     @default("[]")
+  advice      String   @default("")
+  createdBy   String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([clinicId, name])
+  @@map("prescription_templates")
 }

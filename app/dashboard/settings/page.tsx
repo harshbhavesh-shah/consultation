@@ -4,6 +4,7 @@ import { listClinicStaff } from "@/lib/db/staff";
 import AddStaffForm from "@/components/settings/AddStaffForm";
 import { createClient } from "@/lib/supabase/server";
 import AuthenticatorDevices from "@/components/settings/AuthenticatorDevices";
+import LetterheadForm from "@/components/settings/LetterheadForm";
 import StaffList from "@/components/settings/StaffList";
 
 export default async function SettingsPage() {
@@ -36,6 +37,21 @@ export default async function SettingsPage() {
     <div className="mx-auto max-w-2xl">
       <p className="text-xs font-medium uppercase tracking-wide text-brown-400">Settings</p>
       <h1 className="mt-1 font-display text-2xl text-brown-900">{clinic?.name || "Your Clinic"}</h1>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-brown-400">
+          Prescription and receipt letterhead
+        </h2>
+        <LetterheadForm
+          initial={{
+            address: clinic?.address ?? "",
+            phone: clinic?.phone ?? "",
+            doctorName: clinic?.doctorName ?? "",
+            doctorQualifications: clinic?.doctorQualifications ?? "",
+            registrationNo: clinic?.registrationNo ?? "",
+          }}
+        />
+      </div>
 
       <div className="mt-8">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-brown-400">
